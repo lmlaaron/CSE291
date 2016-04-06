@@ -1,0 +1,11 @@
+We present our MIMIR system: a lightweight online
+profiler that hooks into the replacement policy of each cache
+server and produces graphs of the overall cache hit rate
+as a function of memory size. The profiler enables cache
+operators to dynamically project the cost and performance
+impact from adding or removing memory resources within
+a distributed in-memory cache, allowing “what-if” questions
+about cache performance to be answered without laborious
+offline tuning. Internally, MIMIR uses a novel lock-free
+algorithm and lookup filters for quickly and dynamically
+estimating hit rate of LRU caches.
