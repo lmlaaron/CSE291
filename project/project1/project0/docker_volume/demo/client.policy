@@ -1,0 +1,8 @@
+// You'll want to change this to match your own host
+grant
+{
+  permission java.net.SocketPermission 
+         "gigo.sp.cs.cmu.edu:1024-65535", "connect";
+  permission java.net.SocketPermission 
+         "gigo.sp.cs.cmu.edu:80", "connect";
+};

@@ -1,0 +1,9 @@
+Hello world!
+Large-scale in-memory object caches such as memcached
+are widely used to accelerate popular web sites and to reduce
+burden on backend databases. Yet current cache systems give
+cache operators limited information on what resources are
+required to optimally accommodate the present workload.
+This paper focuses on a key question for cache operators: how
+much total memory should be allocated to the in-memory
+cache tier to achieve desired performance?

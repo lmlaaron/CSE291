@@ -21,4 +21,13 @@ public class RMIException extends Exception
     {
         super(cause);
     }
+
+
+    /** List of exceptions to be implemented
+     ?NullPointerException
+     ?UnsupportedOperationException
+     ?IllegalStateException
+     RMIException
+     ?UnknownHostException
+     */
 }
