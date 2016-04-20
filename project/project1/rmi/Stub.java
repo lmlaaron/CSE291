@@ -24,6 +24,7 @@ class MyInvocationHandler  implements InvocationHandler{
         try{
 		String method_name = m.getName();
 		Class<?>[] classes = m.getParameterTypes();
+		Integer method_argc = classes.length;
 		Class<?> return_class = m.getReturnType();
 		Constructor<?> cons = return_class.getConstructor();
 		return_obj = cons.newInstance();
@@ -35,6 +36,7 @@ class MyInvocationHandler  implements InvocationHandler{
 		ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream()); 
 
 		out.writeObject(method_name);
+		out.writeObject(method_argc);
 		for ( int i = 0; i < classes.length; i++ ) {
 		    out.writeObject(classes[i]);
 		}

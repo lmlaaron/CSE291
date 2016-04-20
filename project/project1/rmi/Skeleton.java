@@ -36,6 +36,8 @@ import java.lang.reflect.Proxy;
 */
 public class Skeleton<T>
 {
+    private Class<T> c;
+    private T server;
     /** Creates a <code>Skeleton</code> with no initial server address. The
         address will be determined by the system when <code>start</code> is
         called. Equivalent to using <code>Skeleton(null)</code>.
@@ -58,24 +60,9 @@ public class Skeleton<T>
     public Skeleton(Class<T> c, T server)
     {
         //throw new UnsupportedOperationException("not implemented");
-
-	int port = 10000;
-	ServerSocket serverSocket = new ServerSocket(port);
-
-	while (true) {
-	    Socket socket = serverSocket.accept();
-	    ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-	    
-
-	    in.close();
-	    //return_obj= m.invoke(obj, args); 
-
-	    ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream()); 
-	    out.writeObject(return_obj);
-	    out.flush();
-	    out.close();
-	    socket.close();
-	}
+	
+	this.c = c;
+	this.server = server;
 
 
     }
@@ -171,7 +158,68 @@ public class Skeleton<T>
      */
     public synchronized void start() throws RMIException
     {
-        throw new UnsupportedOperationException("not implemented");
+        //throw new UnsupportedOperationException("not implemented");
+	int port = 10000;
+	final int MAX_ARGC = 200;
+	try {
+  	        ServerSocket serverSocket = new ServerSocket(port);
+    		while (true) {
+	            Socket socket = serverSocket.accept();
+	            ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+		    Class<?>[] classes = new Class<?>[MAX_ARGC];
+	            Object[] args = new Object[MAX_ARGC];
+	            Class<?> return_class;
+	            String method_name;
+		    Integer method_argc;
+		    try { 
+		        method_name = (String) in.readObject();
+		   	method_argc = (Integer) in.readObject();
+	                for ( int i = 0; i < method_argc; i++ ) {
+	                	classes[i] = (Class<?>) in.readObject();
+	                }
+
+	                for (int i = 0; i < method_argc; i++ ) {
+	    	        args[i] = classes[i].cast(in.readObject());
+	                }
+	                return_class = (Class<?>) in.readObject();
+		    } catch ( ClassNotFoundException e ) {
+			    throw e;
+		    }
+		    Method method;
+		    try {
+		        method = server.getClass().getMethod(method_name, classes);
+		    } catch ( NoSuchMethodException e ) {
+			    throw e;
+		    }
+
+	            in.close();
+	            
+	            try {
+		        Object return_obj = method.invoke(server.getClass(), args);
+		        ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream()); 
+	                out.writeObject(return_obj);
+	                out.flush();
+	                out.close();
+	                socket.close();
+		    } catch (InvocationTargetException e ) {
+		        throw e;
+		    }
+		    // if () 
+	            // m  =
+	            //return_obj= m.invoke(obj, args); 
+		}
+	    } catch (IOException e ) {
+	    	//throw e.getMessage();
+	    } catch (ClassNotFoundException e) {
+	    	//throw e;
+	    } catch (NoSuchMethodException e) {
+	        //throw e;
+	    } catch (IllegalAccessException e) {
+	        //throw e;
+	    } catch (InvocationTargetException e) {
+	        //throw e;
+	    }
+	
     }
 
     /** Stops the skeleton server, if it is already running.
