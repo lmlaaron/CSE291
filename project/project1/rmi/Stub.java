@@ -1,10 +1,80 @@
 package rmi;
 
 import java.net.*;
-
 import java.lang.reflect.*;
-
 import java.lang.Object
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.io.*
+import java.io.Serializable;
+
+public class MyInvocationHandler  implements InvocationHandler{
+    @override
+    private InetSocketAddress address;
+	
+    @override
+    public MyInvocationHandler(InetSocketAddress address) {
+    	this.address = address;
+    } 
+
+    @Override
+    public Object invoke(Object proxy, Method m, Object[] args) throws Throwable {
+        Object result;
+        try{
+		String method_name = m.getName();
+		Class<?>[] classes = m.getParameterTypes();
+		Class<?> return_class = m.getReturnType();
+		//args
+
+		
+
+		Socket socket = new Socket(address.getHostname(), address.getPort());
+		// Connect Exception 
+		
+		ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream()); 
+
+		out.writeObject(method_name);
+		for ( int i = 0; i < classes.length(); i++ ) {
+		    out.writeObject(classes[i]);
+		}
+
+		// need to serialize the argument
+	        for ( int i = 0; i < args.length(); i++ ) {
+		    out.writeObject(args[i]);
+		}
+		out.writeObject(return_class);
+
+
+		ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+		Class<return_class> ret =Class<retrun_class> in.readObject();	
+
+		return ret;
+		//args
+		// 1.serilize
+		//m.getParameterTypes
+		//m.getReturnType
+		// 2.tcp to server
+		//==============
+		// server deserialize to get m
+		// m.invoke
+		// server get the return value
+		//==============
+		
+		// 3.tcp returned from server
+		// 4. return the object 
+
+		// doing nothing but m.invoke(obj, args);
+
+        	result = m.invoke(obj, args);
+	    } catch (InvocationTargetException e) {
+	        throw e;
+	    } catch (Exception e) {
+	        throw e;
+	    }
+        return result;
+    }
+}
 
 
 /** RMI stub factory.
@@ -20,6 +90,9 @@ import java.lang.Object
     same interface and carry the same remote server address - and would
     therefore connect to the same skeleton. Stubs are serializable.
  */
+
+
+
 
 
 public abstract class Stub
@@ -114,77 +187,7 @@ public abstract class Stub
     public static <T> T create(Class<T> c, InetSocketAddress address)
     {
 	//throw new UnsupportedOperationException("not implemented");
-	T stub = (T) java.lang.reflect.Proxy.ProxyFactory.newProxyInstance( T.class.getClassLoader(), new java.lang.Class[] { T.class }, new java.lang.reflect.InvocationHandler() {
-            @Override
-            public Object invoke(Object proxy, java.lang.reflect.Method method, Object[] args) throws java.lang.Throwable {
-                String method_name = method.getName();
-                Class<?>[] classes = method.getParameterTypes();
-		//args
-		
-{
-
-            @Override
-            public Object invoke(Object proxy, java.lang.reflect.Method method, Object[] args) throws java.lang.Throwable {
-                String method_name = method.getName();
-                Class<?>[] classes = method.getParameterTypes();
-
-                if (method_name.equals("Name")) {
-                    if (args == null) {
-                        return "Mr IRobot";
-                    } else {
-                        return args[0] + " IRobot";
-                    }
-                } else if (method_name.equals("Talk")) {
-                    switch (classes.length) {
-                        case 0:
-                            System.out.println("Hello");
-                            break;
-                        case 1:
-                            if (classes[0] == int.class) {
-                                System.out.println("Hi. Int: " + args[0]);
-                            } else {
-                                System.out.println("Hi. String: " + args[0]);
-                            }
-                            break;
-                        case 2:
-                            if (classes[0] == String.class) {
-                                System.out.println("Hi. String: " + args[0] + ". Int: " + args[1]);
-                            } else {
-                                if (classes[1] == String.class) {
-                                    System.out.println("Hi. int: " + args[0] + ". String: " + args[1]);
-                                } else {
-                                    System.out.println("Hi. int: " + args[0] + ". Int: " + args[1]);
-                                }
-                            }
-                            break;
-                    }
-                }
-                return null;
-            }
-        }
-
-		//result = m.invoke(obj, args);
-		// 1.serilize
-		//m.getParameterTypes
-		//m.getReturnType
-		// 2.tcp to server
-		//==============
-		// server deserialize to get m
-		// m.invoke
-		// server get the return value
-		//==============
-		
-		// 3.tcp returned from server
-		// 4. return the object 
-
-		// doing nothing but m.invoke(obj, args);
-
-            }
-        });
+	T stub = (T) java.lang.reflect.Proxy.ProxyFactory.newProxyInstance( T.class.getClassLoader(), new java.lang.Class[] { T.class }, myInvocationHandler(address));
 	return stub; 
     }
-
-    //private static <T> class T_impl implements T {
-
-    //}
 }
