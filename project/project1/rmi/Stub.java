@@ -2,54 +2,56 @@ package rmi;
 
 import java.net.*;
 import java.lang.reflect.*;
-import java.lang.Object
+import java.lang.Object;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.io.*
+import java.io.*;
 import java.io.Serializable;
+import java.net.InetSocketAddress;
+//import java.lang.reflect.Proxy.ProxyFactory.newProxyInstance; 
+import java.lang.reflect.Proxy;
 
-public class MyInvocationHandler  implements InvocationHandler{
-    @override
+class MyInvocationHandler  implements InvocationHandler{
     private InetSocketAddress address;
-	
-    @override
     public MyInvocationHandler(InetSocketAddress address) {
     	this.address = address;
     } 
 
     @Override
     public Object invoke(Object proxy, Method m, Object[] args) throws Throwable {
-        Object result;
+        Object return_obj;
         try{
 		String method_name = m.getName();
 		Class<?>[] classes = m.getParameterTypes();
 		Class<?> return_class = m.getReturnType();
+		Constructor<?> cons = return_class.getConstructor();
+		return_obj = cons.newInstance();
 		//args
-
 		
-
-		Socket socket = new Socket(address.getHostname(), address.getPort());
+		Socket socket = new Socket(address.getHostName(), address.getPort());
 		// Connect Exception 
 		
 		ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream()); 
 
 		out.writeObject(method_name);
-		for ( int i = 0; i < classes.length(); i++ ) {
+		for ( int i = 0; i < classes.length; i++ ) {
 		    out.writeObject(classes[i]);
 		}
 
 		// need to serialize the argument
-	        for ( int i = 0; i < args.length(); i++ ) {
+	        for ( int i = 0; i < args.length; i++ ) {
 		    out.writeObject(args[i]);
 		}
 		out.writeObject(return_class);
 
-
 		ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-		Class<return_class> ret =Class<retrun_class> in.readObject();	
+		//return_obj = (Object) in.readObject();
+		return_obj = return_class.cast(in.readObject());
 
-		return ret;
+		//Class<return_class> ret =Class<retrun_class> in.readObject();	
+
+		//return return_obj;
 		//args
 		// 1.serilize
 		//m.getParameterTypes
@@ -66,13 +68,13 @@ public class MyInvocationHandler  implements InvocationHandler{
 
 		// doing nothing but m.invoke(obj, args);
 
-        	result = m.invoke(obj, args);
+        	//result = m.invoke(obj, args);
 	    } catch (InvocationTargetException e) {
 	        throw e;
 	    } catch (Exception e) {
 	        throw e;
 	    }
-        return result;
+        return return_obj;
     }
 }
 
@@ -186,8 +188,9 @@ public abstract class Stub
      */
     public static <T> T create(Class<T> c, InetSocketAddress address)
     {
-	//throw new UnsupportedOperationException("not implemented");
-	T stub = (T) java.lang.reflect.Proxy.ProxyFactory.newProxyInstance( T.class.getClassLoader(), new java.lang.Class[] { T.class }, myInvocationHandler(address));
+	MyInvocationHandler h = new MyInvocationHandler(address);
+	ClassLoader cl = c.getClassLoader();
+	T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
 	return stub; 
     }
 }
