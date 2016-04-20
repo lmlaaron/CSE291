@@ -1,6 +1,16 @@
 package rmi;
 
 import java.net.*;
+import java.lang.reflect.*;
+import java.lang.Object;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.io.*;
+import java.io.Serializable;
+import java.net.InetSocketAddress;
+//import java.lang.reflect.Proxy.ProxyFactory.newProxyInstance; 
+import java.lang.reflect.Proxy;
 
 /** RMI skeleton
 
@@ -47,7 +57,27 @@ public class Skeleton<T>
      */
     public Skeleton(Class<T> c, T server)
     {
-        throw new UnsupportedOperationException("not implemented");
+        //throw new UnsupportedOperationException("not implemented");
+
+	int port = 10000;
+	ServerSocket serverSocket = new ServerSocket(port);
+
+	while (true) {
+	    Socket socket = serverSocket.accept();
+	    ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+	    
+
+	    in.close();
+	    //return_obj= m.invoke(obj, args); 
+
+	    ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream()); 
+	    out.writeObject(return_obj);
+	    out.flush();
+	    out.close();
+	    socket.close();
+	}
+
+
     }
 
     /** Creates a <code>Skeleton</code> with the given initial server address.

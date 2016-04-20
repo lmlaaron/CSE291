@@ -44,10 +44,12 @@ class MyInvocationHandler  implements InvocationHandler{
 		    out.writeObject(args[i]);
 		}
 		out.writeObject(return_class);
-
+		out.flush();
+		out.close();
 		ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
 		//return_obj = (Object) in.readObject();
 		return_obj = return_class.cast(in.readObject());
+		in.close();
 
 		//Class<return_class> ret =Class<retrun_class> in.readObject();	
 
@@ -188,9 +190,15 @@ public abstract class Stub
      */
     public static <T> T create(Class<T> c, InetSocketAddress address)
     {
+	if ( c == null || address == null ) {
+		throw new NullPointerException("null pointer!");
+	}
+	// throw new RMIException
+	// throw new RMIException
+	
 	MyInvocationHandler h = new MyInvocationHandler(address);
 	ClassLoader cl = c.getClassLoader();
 	T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
-	return stub; 
+	return stub;
     }
 }
