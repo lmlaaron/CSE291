@@ -41,7 +41,9 @@ public class Skeleton<T>
     private String hostname;
     private int port;
     private boolean isStopped;
-    private ServerSocket serverSocket;
+    public ServerSocket serverSocket;
+    private Thread listen_thread;
+    private Listener listener;
     public String hostname() {
     	return hostname;
     }
@@ -235,29 +237,17 @@ public class Skeleton<T>
 	    throw new RMIException("already started!");
 	}
 	this.isStopped = false;	
-	//ServerSocket serverSocket;
 	try {
   	    this.serverSocket = new ServerSocket(this.port);
-            new Thread( new Listener(this)).start();
-	    //new Thread(new Listener(this)).start();
+	    this.listener = new Listener(this, this.serverSocket);
+            this.listen_thread = new Thread(this.listener);
+	    this.listen_thread.start();
 	    return;        
 	} catch (IOException e ) {
 	    throw new RMIException("listening port cannot be created!");	
 	}
        
-        //while (! this.isStopped ) {
- 	//    Socket socket; 
- 	//    try {
- 	//        socket = serverSocket.accept();
- 	//    } catch ( IOException e) {
- 	//        if(isStopped()) {
-        //             return;
-        //         }
-        //         throw new RMIException("Error accepting client connection"); 
- 	//    }
- 	//    new Thread( new ClientWorker(socket, this.server.getClass() ) ).start();
-	//}
-    }
+   }
     /** Stops the skeleton server, if it is already running.
 
         <p>
@@ -271,29 +261,55 @@ public class Skeleton<T>
     {	
 	if ( !this.isStopped() ) {	
 	}
+	if ( this.listen_thread != null && this.listen_thread.isAlive() ) {
+	    this.listen_thread.stop();
+	    try {
+		this.serverSocket.close();
+	    } catch ( Exception e ) {
+	    }
+	}
 	this.stopped(null);
+	return;
         //throw new UnsupportedOperationException("not implemented");
     }
 }
 
 class Listener<T> implements Runnable {
     private Skeleton<T> skeleton;
-
-    Listener(Skeleton<T> skeleton ) {
+    private ServerSocket serverSocket;
+	    
+    Listener(Skeleton<T> skeleton, ServerSocket serverSocket) {
     	this.skeleton = skeleton;
+	this.serverSocket = serverSocket;
     }
+
     public void run() {
         while (! this.skeleton.isStopped() ) {
- 	    Socket socket; 
+ 	    //Socket socket; 
  	    try {
- 	        socket = this.skeleton.serverSocket().accept();
- 	    	new Thread( new ClientWorker(socket, this.skeleton.server().getClass() ) ).start();
-	    } catch ( Exception e) {
+ 	        if ( ! this.skeleton.isStopped() ) {
+		    //socket = this.skeleton.serverSocket.accept();
+ 	    	    Socket socket = this.serverSocket.accept();
+		    new Thread( new ClientWorker(socket, this.skeleton.server().getClass() ) ).start();
+	    	} else {
+		    return;
+		}
+	     } catch ( Exception e) {
  	        if(this.skeleton.isStopped()) {
                      return;
                  }
                  //throw e; 
  	    }
+	}
+	return;
+    }
+    public void stop() {
+    	if ( this.serverSocket != null ) {
+	    try {
+	        this.serverSocket.close();
+	    } catch (IOException e) {
+		    //throw new IOException("serverSocket cannot be closed");
+	    }
 	}
     }
 }
