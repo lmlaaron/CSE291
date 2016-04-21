@@ -14,8 +14,12 @@ import java.lang.reflect.Proxy;
 
 class MyInvocationHandler  implements InvocationHandler{
     private InetSocketAddress address;
+    private String hostname;
     public MyInvocationHandler(InetSocketAddress address) {
     	this.address = address;
+    } 
+    public MyInvocationHandler(String hostname) {
+    	this.hostname = hostname;
     } 
 
     @Override
@@ -49,30 +53,9 @@ class MyInvocationHandler  implements InvocationHandler{
 		out.flush();
 		out.close();
 		ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-		//return_obj = (Object) in.readObject();
 		return_obj = return_class.cast(in.readObject());
 		in.close();
 
-		//Class<return_class> ret =Class<retrun_class> in.readObject();	
-
-		//return return_obj;
-		//args
-		// 1.serilize
-		//m.getParameterTypes
-		//m.getReturnType
-		// 2.tcp to server
-		//==============
-		// server deserialize to get m
-		// m.invoke
-		// server get the return value
-		//==============
-		
-		// 3.tcp returned from server
-		// 4. return the object 
-
-		// doing nothing but m.invoke(obj, args);
-
-        	//result = m.invoke(obj, args);
 	    } catch (InvocationTargetException e) {
 	        throw e;
 	    } catch (Exception e) {
@@ -134,7 +117,59 @@ public abstract class Stub
     public static <T> T create(Class<T> c, Skeleton<T> skeleton)
         throws UnknownHostException
     {
-        throw new UnsupportedOperationException("not implemented");
+	final int TIMEOUT_MILLIS = 10000;
+	
+ 	//throw new UnsupportedOperationException("not implemented");
+	if ( c == null || skeleton == null ) {
+	    throw new NullPointerException("null pointer!");
+	}
+	if ( skeleton.hostname == null || skeleton.port == 0 ) {
+ 	    throw new IllegalStateException("IllegalStateException!");
+	}    
+	
+	// currently assume if the server cannot be connected, then it is not started 
+	try {
+	    Socket soc = new Socket();
+	    soc.connect( new InetSocketAddress(skeleton.hostname, skeleton.port), TIMEOUT_MILLIS);
+	    soc.close();
+	} catch ( IOException e ) {
+		throw new IllegalStateException("IllegalStateException!");
+	}
+		    
+	if ( skeleton.hostname == null && skeleton.port != 0 ) {
+	    try {
+	        Socket soc = new Socket();
+		soc.connect( new InetSocketAddress("localhost", skeleton.port), TIMEOUT_MILLIS);
+   		soc.close();
+	    } catch ( IOException e ) {
+		throw new UnknownHostException("UnknownHostException!");
+	    }
+   	}
+
+	MyInvocationHandler h = new MyInvocationHandler(new InetSocketAddress( skeleton.hostname, skeleton.port));
+	ClassLoader cl = c.getClassLoader();
+	T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
+
+	Method[] allmethods = stub.getClass().getMethods();
+	int rmi_ex = 0;
+	for ( int i = 0; i < allmethods.length; i++ ) {
+		Class<?>[] all_ex = allmethods[i].getExceptionTypes();
+	    rmi_ex = 0;
+	    for ( int j = 0; j < all_ex.length; j++ ) {
+	        if ( all_ex[j] == RMIException.class ) {
+	    	rmi_ex = 1;
+	    	break;	
+	        }
+	    }
+	    if ( rmi_ex == 0 ) {
+	        break;
+	    }
+	}
+	if ( rmi_ex == 0 ) {
+		throw new Error("Error!");
+	}
+
+	return stub;
     }
 
     /** Creates a stub, given a skeleton with an assigned address and a hostname
@@ -170,7 +205,39 @@ public abstract class Stub
     public static <T> T create(Class<T> c, Skeleton<T> skeleton,
                                String hostname)
     {
-        throw new UnsupportedOperationException("not implemented");
+        //throw new UnsupportedOperationException("not implemented");
+	
+	if ( c == null || skeleton == null || hostname == null ) {
+	    throw new NullPointerException("null pointer!");
+	}
+	if ( skeleton.port == 0 ) {
+ 	    throw new IllegalStateException("IllegalStateException!");
+	}
+	
+	MyInvocationHandler h = new MyInvocationHandler(new InetSocketAddress( hostname, skeleton.port));
+	ClassLoader cl = c.getClassLoader();
+	T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
+	
+	Method[] allmethods = stub.getClass().getMethods();
+	int rmi_ex = 0;
+	for ( int i = 0; i < allmethods.length; i++ ) {
+		Class<?>[] all_ex = allmethods[i].getExceptionTypes();
+	    rmi_ex = 0;
+	    for ( int j = 0; j < all_ex.length; j++ ) {
+	        if ( all_ex[j] == RMIException.class ) {
+	    	rmi_ex = 1;
+	    	break;	
+	        }
+	    }
+	    if ( rmi_ex == 0 ) {
+	        break;
+	    }
+	}
+	if ( rmi_ex == 0 ) {
+		throw new Error("Error!");
+	}
+
+	return stub;
     }
 
     /** Creates a stub, given the address of a remote server.
@@ -195,12 +262,29 @@ public abstract class Stub
 	if ( c == null || address == null ) {
 		throw new NullPointerException("null pointer!");
 	}
-	// throw new RMIException
-	// throw new RMIException
 	
 	MyInvocationHandler h = new MyInvocationHandler(address);
 	ClassLoader cl = c.getClassLoader();
 	T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
+	Method[] allmethods = stub.getClass().getMethods();
+	
+	int rmi_ex = 0;
+	for ( int i = 0; i < allmethods.length; i++ ) {
+		Class<?>[] all_ex = allmethods[i].getExceptionTypes();
+	    rmi_ex = 0;
+	    for ( int j = 0; j < all_ex.length; j++ ) {
+	        if ( all_ex[j] == RMIException.class ) {
+	    	rmi_ex = 1;
+	    	break;	
+	        }
+	    }
+	    if ( rmi_ex == 0 ) {
+	        break;
+	    }
+	}
+	if ( rmi_ex == 0 ) {
+		throw new Error("Error!");
+	}
 	return stub;
     }
 }
