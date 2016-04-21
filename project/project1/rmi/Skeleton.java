@@ -176,38 +176,47 @@ public class Skeleton<T>
 		        method_name = (String) in.readObject();
 		   	method_argc = (Integer) in.readObject();
 	                for ( int i = 0; i < method_argc; i++ ) {
-	                	classes[i] = (Class<?>) in.readObject();
+	                    classes[i] = (Class<?>) in.readObject();
 	                }
 
 	                for (int i = 0; i < method_argc; i++ ) {
-	    	        args[i] = classes[i].cast(in.readObject());
+	    	            args[i] = classes[i].cast(in.readObject());
 	                }
 	                return_class = (Class<?>) in.readObject();
 		    } catch ( ClassNotFoundException e ) {
-			    throw e;
+			throw e;
 		    }
 		    Method method;
+		    int exceptionNum = -1;
 		    try {
 		        method = server.getClass().getMethod(method_name, classes);
 		    } catch ( NoSuchMethodException e ) {
-			    throw e;
+			throw e;
 		    }
 
 	            in.close();
-	            
-	            try {
-		        Object return_obj = method.invoke(server.getClass(), args);
-		        ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream()); 
-	                out.writeObject(return_obj);
-	                out.flush();
-	                out.close();
-	                socket.close();
-		    } catch (InvocationTargetException e ) {
-		        throw e;
+	            Class<?>[] exceptions = method.getExceptionTypes();
+	            Object return_obj;
+		    
+		    ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream()); 
+		    try {
+		        return_obj = method.invoke(server.getClass(), args);
+		        out.writeObject(-1);
+		        out.writeObject(return_obj);
+		    } catch ( Exception ex ) {
+		        int i;
+		        for ( i = 0; i < exceptions.length; i++ ) {
+		            if ( exceptions[i] == ex.getClass() ) {
+		                exceptionNum = i;
+    		    	    break;
+		    	}
+		        }
+		        out.writeObject(i);
+		        out.writeObject(ex);
 		    }
-		    // if () 
-	            // m  =
-	            //return_obj= m.invoke(obj, args); 
+	            out.flush();
+	            out.close();
+	            socket.close();
 		}
 	    } catch (IOException e ) {
 	    	//throw e.getMessage();
@@ -215,12 +224,7 @@ public class Skeleton<T>
 	    	//throw e;
 	    } catch (NoSuchMethodException e) {
 	        //throw e;
-	    } catch (IllegalAccessException e) {
-	        //throw e;
-	    } catch (InvocationTargetException e) {
-	        //throw e;
-	    }
-	
+	    }	
     }
 
     /** Stops the skeleton server, if it is already running.
