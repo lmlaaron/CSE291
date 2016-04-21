@@ -1,4 +1,13 @@
+#
 *.swo
 *.swn
 *.swm
 *.class
+*/*.swo
+*/*.swn
+*/*.swm
+*/*/*.class
+*/*/*.swo
+*/*/*.swn
+*/*/*.swm
+*/*/*.class
