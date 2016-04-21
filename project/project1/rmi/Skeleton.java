@@ -62,11 +62,32 @@ public class Skeleton<T>
     public Skeleton(Class<T> c, T server)
     {
         //throw new UnsupportedOperationException("not implemented");	
+	Method[] allmethods = c.getMethods();
+	int rmi_ex = 0;
+	for ( int i = 0; i < allmethods.length; i++ ) {
+		Class<?>[] all_ex = allmethods[i].getExceptionTypes();
+	    rmi_ex = 0;
+	    for ( int j = 0; j < all_ex.length; j++ ) {
+	        if ( all_ex[j] == RMIException.class ) {
+	    	rmi_ex = 1;
+	    	break;	
+	        }
+	    }
+	    if ( rmi_ex == 0 ) {
+	        break;
+	    }
+	}
+	if ( rmi_ex == 0 ) {
+		throw new Error("Error!");
+	}
+	    
+	if ( c == null || server == null ) {
+		throw new NullPointerException("NullPointerException");
+	}
+	    
 	this.c = c;
 	this.server = server;
-
-
-    }
+   }
 
     /** Creates a <code>Skeleton</code> with the given initial server address.
 
@@ -88,7 +109,36 @@ public class Skeleton<T>
      */
     public Skeleton(Class<T> c, T server, InetSocketAddress address)
     {
-        throw new UnsupportedOperationException("not implemented");
+        //throw new UnsupportedOperationException("not implemented");
+	Method[] allmethods = c.getMethods();
+	int rmi_ex = 0;
+	for ( int i = 0; i < allmethods.length; i++ ) {
+		Class<?>[] all_ex = allmethods[i].getExceptionTypes();
+	    rmi_ex = 0;
+	    for ( int j = 0; j < all_ex.length; j++ ) {
+	        if ( all_ex[j] == RMIException.class ) {
+	    	rmi_ex = 1;
+	    	break;	
+	        }
+	    }
+	    if ( rmi_ex == 0 ) {
+	        break;
+	    }
+	}
+	if ( rmi_ex == 0 ) {
+		throw new Error("Error!");
+	}
+	    
+	if ( c == null || server == null ) {
+		throw new NullPointerException("NullPointerException");
+	}
+	    
+	this.c = c;
+	this.server = server;
+	if ( address != null ) {
+	    this.hostname = address.getHostName();
+	    this.port = address.getPort();
+	}
     }
 
     /** Called when the listening thread exits.
