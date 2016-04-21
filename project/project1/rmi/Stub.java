@@ -138,30 +138,30 @@ public abstract class Stub
 	if ( c == null || skeleton == null ) {
 	    throw new NullPointerException("null pointer!");
 	}
-	if ( skeleton.hostname == null || skeleton.port == 0 ) {
+	if ( skeleton.hostname() == null || skeleton.port() == 0 ) {
  	    throw new IllegalStateException("IllegalStateException!");
 	}    
 	
 	// currently assume if the server cannot be connected, then it is not started 
 	try {
 	    Socket soc = new Socket();
-	    soc.connect( new InetSocketAddress(skeleton.hostname, skeleton.port), TIMEOUT_MILLIS);
+	    soc.connect( new InetSocketAddress(skeleton.hostname(), skeleton.port()), TIMEOUT_MILLIS);
 	    soc.close();
 	} catch ( IOException e ) {
 		throw new IllegalStateException("IllegalStateException!");
 	}
 		    
-	if ( skeleton.hostname == null && skeleton.port != 0 ) {
+	if ( skeleton.hostname() == null && skeleton.port() != 0 ) {
 	    try {
 	        Socket soc = new Socket();
-		soc.connect( new InetSocketAddress("localhost", skeleton.port), TIMEOUT_MILLIS);
+		soc.connect( new InetSocketAddress("localhost", skeleton.port()), TIMEOUT_MILLIS);
    		soc.close();
 	    } catch ( IOException e ) {
 		throw new UnknownHostException("UnknownHostException!");
 	    }
    	}
 
-	MyInvocationHandler h = new MyInvocationHandler(new InetSocketAddress( skeleton.hostname, skeleton.port));
+	MyInvocationHandler h = new MyInvocationHandler(new InetSocketAddress( skeleton.hostname(), skeleton.port() ));
 	ClassLoader cl = c.getClassLoader();
 	T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
 
@@ -225,11 +225,11 @@ public abstract class Stub
 	if ( c == null || skeleton == null || hostname == null ) {
 	    throw new NullPointerException("null pointer!");
 	}
-	if ( skeleton.port == 0 ) {
+	if ( skeleton.port() == 0 ) {
  	    throw new IllegalStateException("IllegalStateException!");
 	}
 	
-	MyInvocationHandler h = new MyInvocationHandler(new InetSocketAddress( hostname, skeleton.port));
+	MyInvocationHandler h = new MyInvocationHandler(new InetSocketAddress( hostname, skeleton.port()));
 	ClassLoader cl = c.getClassLoader();
 	T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
 	

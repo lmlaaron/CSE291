@@ -38,8 +38,18 @@ public class Skeleton<T>
 {
     private Class<T> c;
     private T server;
-    public String hostname;
-    public int port;
+    private String hostname;
+    private int port;
+    private boolean isStopped;
+    public String hostname() {
+    	return hostname;
+    }
+    public int port() {
+        return port;
+    }
+    public boolean isStopped() {
+    	return isStopped;
+    }
     /** Creates a <code>Skeleton</code> with no initial server address. The
         address will be determined by the system when <code>start</code> is
         called. Equivalent to using <code>Skeleton(null)</code>.
@@ -210,73 +220,30 @@ public class Skeleton<T>
     public synchronized void start() throws RMIException
     {
         //throw new UnsupportedOperationException("not implemented");
-	int port = 10000;
-	final int MAX_ARGC = 200;
+
+        if (!this.isStopped() ) {
+	    throw new RMIException("already started!");
+	}		
+	ServerSocket serverSocket;
 	try {
-  	        ServerSocket serverSocket = new ServerSocket(port);
-    		while (true) {
-	            Socket socket = serverSocket.accept();
-	            ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-		    Class<?>[] classes = new Class<?>[MAX_ARGC];
-	            Object[] args = new Object[MAX_ARGC];
-	            Class<?> return_class;
-	            String method_name;
-		    Integer method_argc;
-		    try { 
-		        method_name = (String) in.readObject();
-		   	method_argc = (Integer) in.readObject();
-	                for ( int i = 0; i < method_argc; i++ ) {
-	                    classes[i] = (Class<?>) in.readObject();
-	                }
-
-	                for (int i = 0; i < method_argc; i++ ) {
-	    	            args[i] = classes[i].cast(in.readObject());
-	                }
-	                return_class = (Class<?>) in.readObject();
-		    } catch ( ClassNotFoundException e ) {
-			throw e;
-		    }
-		    Method method;
-		    int exceptionNum = -1;
-		    try {
-		        method = server.getClass().getMethod(method_name, classes);
-		    } catch ( NoSuchMethodException e ) {
-			throw e;
-		    }
-
-	            in.close();
-	            Class<?>[] exceptions = method.getExceptionTypes();
-	            Object return_obj;
-		    
-		    ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream()); 
-		    try {
-		        return_obj = method.invoke(server.getClass(), args);
-		        out.writeObject(-1);
-		        out.writeObject(return_obj);
-		    } catch ( Exception ex ) {
-		        int i;
-		        for ( i = 0; i < exceptions.length; i++ ) {
-		            if ( exceptions[i] == ex.getClass() ) {
-		                exceptionNum = i;
-    		    	    break;
-		    	}
-		        }
-		        out.writeObject(i);
-		        out.writeObject(ex);
-		    }
-	            out.flush();
-	            out.close();
-	            socket.close();
-		}
-	    } catch (IOException e ) {
-	    	//throw e.getMessage();
-	    } catch (ClassNotFoundException e) {
-	    	//throw e;
-	    } catch (NoSuchMethodException e) {
-	        //throw e;
-	    }	
+  	    serverSocket = new ServerSocket(this.port);
+	} catch (IOException e ) {
+	    throw new RMIException("listening port cannot be created!");	
+	}
+	
+	while (! isStopped() ) {
+	    Socket socket; 
+	    try {
+	        socket = serverSocket.accept();
+	    } catch ( IOException e) {
+	        if(isStopped()) {
+                    return;
+                }
+                throw new RMIException("Error accepting client connection"); 
+	    }
+	    new Thread( new ClientWorker(socket, this.server.getClass() ) ).start();
+	}
     }
-
     /** Stops the skeleton server, if it is already running.
 
         <p>
@@ -291,3 +258,78 @@ public class Skeleton<T>
         throw new UnsupportedOperationException("not implemented");
     }
 }
+
+
+class ClientWorker implements Runnable {
+    private Socket socket;
+    private Class<?> server_class;
+    final int MAX_ARGC = 200;
+    
+    ClientWorker(Socket socket, Class<?> server_class) {
+      this.socket = socket;
+      this.server_class = server_class;
+    }
+
+    public void run(){
+        try {
+            ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+            Class<?>[] classes = new Class<?>[MAX_ARGC];
+            Object[] args = new Object[MAX_ARGC];
+            Class<?> return_class;
+            String method_name;
+            Integer method_argc;
+            try { 
+                method_name = (String) in.readObject();
+           	method_argc = (Integer) in.readObject();
+                for ( int i = 0; i < method_argc; i++ ) {
+                    classes[i] = (Class<?>) in.readObject();
+                }
+
+                for (int i = 0; i < method_argc; i++ ) {
+                        args[i] = classes[i].cast(in.readObject());
+                }
+                return_class = (Class<?>) in.readObject();
+            } catch ( ClassNotFoundException e ) {
+        	throw e;
+            }
+            Method method;
+            int exceptionNum = -1;
+            try {
+                method = this.server_class.getMethod(method_name, classes);
+            } catch ( NoSuchMethodException e ) {
+        	throw e;
+            }
+
+            in.close();
+            Class<?>[] exceptions = method.getExceptionTypes();
+            Object return_obj;
+            
+            ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream()); 
+            try {
+                return_obj = method.invoke(this.server_class, args);
+                out.writeObject(-1);
+                out.writeObject(return_obj);
+            } catch ( Exception ex ) {
+                int i;
+                for ( i = 0; i < exceptions.length; i++ ) {
+                    if ( exceptions[i] == ex.getClass() ) {
+                        exceptionNum = i;
+            	    break;
+            	}
+                }
+                out.writeObject(i);
+                out.writeObject(ex);
+            }
+            out.flush();
+            out.close();
+            socket.close();
+        } catch (IOException e ) {
+            //throw e.getMessage();
+        } catch (ClassNotFoundException e) {
+            //throw e;
+        } catch (NoSuchMethodException e) {
+        //throw e;
+        }
+    }    
+}
+
