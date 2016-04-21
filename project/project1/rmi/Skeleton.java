@@ -41,6 +41,7 @@ public class Skeleton<T>
     private String hostname;
     private int port;
     private boolean isStopped;
+    private ServerSocket serverSocket;
     public String hostname() {
     	return hostname;
     }
@@ -49,6 +50,12 @@ public class Skeleton<T>
     }
     public boolean isStopped() {
     	return isStopped;
+    }
+    public ServerSocket serverSocket() {
+    	return serverSocket;
+    }
+    public T server() {
+    	return server;
     }
     /** Creates a <code>Skeleton</code> with no initial server address. The
         address will be determined by the system when <code>start</code> is
@@ -97,6 +104,7 @@ public class Skeleton<T>
 	    
 	this.c = c;
 	this.server = server;
+	this.isStopped = true;
    }
 
     /** Creates a <code>Skeleton</code> with the given initial server address.
@@ -145,6 +153,7 @@ public class Skeleton<T>
 	    
 	this.c = c;
 	this.server = server;
+	this.isStopped = true;
 	if ( address != null ) {
 	    this.hostname = address.getHostName();
 	    this.port = address.getPort();
@@ -171,6 +180,7 @@ public class Skeleton<T>
      */
     protected void stopped(Throwable cause)
     {
+        this.isStopped = true;	    
     }
 
     /** Called when an exception occurs at the top level in the listening
@@ -223,26 +233,30 @@ public class Skeleton<T>
 
         if (!this.isStopped() ) {
 	    throw new RMIException("already started!");
-	}		
-	ServerSocket serverSocket;
+	}
+	this.isStopped = false;	
+	//ServerSocket serverSocket;
 	try {
-  	    serverSocket = new ServerSocket(this.port);
+  	    this.serverSocket = new ServerSocket(this.port);
+            new Thread( new Listener(this)).start();
+	    //new Thread(new Listener(this)).start();
+	    return;        
 	} catch (IOException e ) {
 	    throw new RMIException("listening port cannot be created!");	
 	}
-	
-	while (! isStopped() ) {
-	    Socket socket; 
-	    try {
-	        socket = serverSocket.accept();
-	    } catch ( IOException e) {
-	        if(isStopped()) {
-                    return;
-                }
-                throw new RMIException("Error accepting client connection"); 
-	    }
-	    new Thread( new ClientWorker(socket, this.server.getClass() ) ).start();
-	}
+       
+        //while (! this.isStopped ) {
+ 	//    Socket socket; 
+ 	//    try {
+ 	//        socket = serverSocket.accept();
+ 	//    } catch ( IOException e) {
+ 	//        if(isStopped()) {
+        //             return;
+        //         }
+        //         throw new RMIException("Error accepting client connection"); 
+ 	//    }
+ 	//    new Thread( new ClientWorker(socket, this.server.getClass() ) ).start();
+	//}
     }
     /** Stops the skeleton server, if it is already running.
 
@@ -254,8 +268,33 @@ public class Skeleton<T>
         restarted.
      */
     public synchronized void stop()
-    {
-        throw new UnsupportedOperationException("not implemented");
+    {	
+	if ( !this.isStopped() ) {	
+	}
+	this.stopped(null);
+        //throw new UnsupportedOperationException("not implemented");
+    }
+}
+
+class Listener<T> implements Runnable {
+    private Skeleton<T> skeleton;
+
+    Listener(Skeleton<T> skeleton ) {
+    	this.skeleton = skeleton;
+    }
+    public void run() {
+        while (! this.skeleton.isStopped() ) {
+ 	    Socket socket; 
+ 	    try {
+ 	        socket = this.skeleton.serverSocket().accept();
+ 	    	new Thread( new ClientWorker(socket, this.skeleton.server().getClass() ) ).start();
+	    } catch ( Exception e) {
+ 	        if(this.skeleton.isStopped()) {
+                     return;
+                 }
+                 //throw e; 
+ 	    }
+	}
     }
 }
 
