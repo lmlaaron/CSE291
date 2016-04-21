@@ -234,6 +234,7 @@ public abstract class Stub
 	T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
 	
 	Method[] allmethods = stub.getClass().getMethods();
+	
 	int rmi_ex = 0;
 	for ( int i = 0; i < allmethods.length; i++ ) {
 		Class<?>[] all_ex = allmethods[i].getExceptionTypes();
@@ -280,26 +281,32 @@ public abstract class Stub
 	
 	MyInvocationHandler h = new MyInvocationHandler(address);
 	ClassLoader cl = c.getClassLoader();
-	T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
-	Method[] allmethods = stub.getClass().getMethods();
-	
-	int rmi_ex = 0;
-	for ( int i = 0; i < allmethods.length; i++ ) {
-		Class<?>[] all_ex = allmethods[i].getExceptionTypes();
-	    rmi_ex = 0;
-	    for ( int j = 0; j < all_ex.length; j++ ) {
-	        if ( all_ex[j] == RMIException.class ) {
-	    	rmi_ex = 1;
-	    	break;	
+	try {
+	    T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
+	    Method[] allmethods = stub.getClass().getMethods();
+	    
+	    int rmi_ex = 0;
+	    for ( int i = 0; i < allmethods.length; i++ ) {
+	    	Class<?>[] all_ex = allmethods[i].getExceptionTypes();
+	        rmi_ex = 0;
+	        for ( int j = 0; j < all_ex.length; j++ ) {
+	            if ( all_ex[j] == RMIException.class ) {
+	        	rmi_ex = 1;
+	        	break;	
+	            }
+	        }
+	        if ( rmi_ex == 0 ) {
+	            break;
 	        }
 	    }
 	    if ( rmi_ex == 0 ) {
-	        break;
+	    	throw new Error("Error!");
 	    }
+	    return stub;
+	} catch ( Error err) {
+	    throw err;
+	} catch ( Exception e) {
+	    throw new Error("error");	
 	}
-	if ( rmi_ex == 0 ) {
-		throw new Error("Error!");
-	}
-	return stub;
     }
 }

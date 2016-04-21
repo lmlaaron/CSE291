@@ -45,7 +45,7 @@ all-classes :
 # Run unit and conformance tests.
 .PHONY : test
 test : all-classes
-	java -cp $(UNITCLASSPATH) unit.UnitTests
+	java -cp $(UNITCLASSPATH) unit.UnitTests 
 	@echo
 	java conformance.ConformanceTests
 
