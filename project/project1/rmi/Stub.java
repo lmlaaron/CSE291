@@ -19,7 +19,7 @@ class MyInvocationHandler  implements InvocationHandler{
     //	return this.hostname;
     //}
     public InetSocketAddress getInetSocketAddress() {
-        return this.InetSocketAddress;
+        return this.address;
     }
     private Class<?> remoteInterface;
     private Class<?> getInterface() {
@@ -29,9 +29,9 @@ class MyInvocationHandler  implements InvocationHandler{
     	this.address = address;
 	this.remoteInterface = remoteInterface;
     } 
-    public MyInvocationHandler(String hostname) {
-    	this.hostname = hostname;
-    } 
+    //public MyInvocationHandler(String hostname) {
+    //	this.hostname = hostname;
+    //} 
 
     @Override
     public Object invoke(Object proxy, Method m, Object[] args) throws Throwable {
@@ -333,22 +333,28 @@ public abstract class Stub
 	}
     }
     
-    @Override
-    public <T> boolean equals(T other) throws RMIException {
+    public boolean equals(Object other) throws RMIException {
 	// currently assume same address(hostname, portnumber) indicates same skeleton, which might be problematic, to be modified later
-    	return ( (getInvocationHandler(this).getInetSocketAddress() == getInvocationHandler(other).getInetSocketAddress() ) && ( getInvocationHandler(this).getInetSocketAddress() != null) && ( getInvocationHandler(this).getInterface() == getInvocationHandler(other).getInterface() ) && (getInvocationHandler(this).getInterface() != null) );
+    	try {
+	    return ( (getInvocationHandler(this).getInetSocketAddress() == getInvocationHandler(other).getInetSocketAddress() ) && ( getInvocationHandler(this).getInetSocketAddress() != null) && ( getInvocationHandler(this).getInterface() == getInvocationHandler(other).getInterface() ) && (getInvocationHandler(this).getInterface() != null) );
+	} catch (Throwable t) {
+	    throw new RMIException("RMIException");
+	}
     }
     
-    @Override 
     public int hashcode() throws RMIException {
         try {
-
+	    final int prime = 31;
+	    int ret = 0;
+	    InetSocketAddress addr = getInvocationHandler(this).getInetSocketAddress();
+	    Class<?> c = getInvocationHandler(this).getInterface();
+	    ret = ( addr.toString() + c.toString() ).hashcode();
+	    return ret;
 	} catch (Throwable t) {
 	    throw new RMIException("RMIException");
 	}	
     }
 
-    @Override
     public String toString() throws RMIException {
         try { 
 	    String ret = "Name of RemoteInterface: " + getInvocationHandler(this).getInterface().getName() + " remote address: " + getInvocationHandler(this).getInetSocketAddress().getHostName() + "; " +getInvocationHandler(this).getInetSocketAddress().getPort(); 
