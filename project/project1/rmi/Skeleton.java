@@ -68,7 +68,7 @@ public class Skeleton<T>
         bootstrapping RMI - those that therefore do not require a well-known
         port.
 
-        @param c An object representing the class of the interface for which the
+        @param c An object representing tghe class of the interface for which the
                  skeleton server is to handle method call requests.
         @param server An object implementing said interface. Requests for method
                       calls are forwarded by the skeleton to this object.
@@ -107,6 +107,7 @@ public class Skeleton<T>
 	this.c = c;
 	this.server = server;
 	this.isStopped = true;
+	this.hostname = "wildcard";
    }
 
     /** Creates a <code>Skeleton</code> with the given initial server address.
@@ -232,6 +233,38 @@ public class Skeleton<T>
     public synchronized void start() throws RMIException
     {
         //throw new UnsupportedOperationException("not implemented");
+	
+	if ( this.hostname == "wildcard" ) {
+	    try {
+	    	this.hostname =InetAddress.getLocalHost().getHostAddress();
+	    } catch (UnknownHostException e) {
+	    	throw new RMIException("cannot resolve host");
+	    }
+	};
+	if (this.port == 0 ) {
+	    ServerSocket ss = null;
+	    int i = 0;
+	    for ( i = 1099; i < 65536; i++ ) {
+	        boolean portTaken = false;
+	        try {
+	    	    ss = new ServerSocket(i);
+	        } catch ( IOException e) {
+	            portTaken = true;
+	        } finally {
+	    	    try {
+	    	        ss.close();
+	    	    } catch (IOException e) {
+	    	    }
+	        }
+	        if (!portTaken) {
+	        	this.port = i;
+	    	break;
+	        }
+	    }
+	    if (i == 65536 ) {
+	        throw new RMIException("no available port");
+	    }
+	}
 
         if (!this.isStopped() ) {
 	    throw new RMIException("already started!");

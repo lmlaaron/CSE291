@@ -138,7 +138,7 @@ public abstract class Stub
 	if ( c == null || skeleton == null ) {
 	    throw new NullPointerException("null pointer!");
 	}
-	if ( skeleton.hostname() == null || skeleton.port() == 0 ) {
+	if ( skeleton.hostname() == "wildcard" || skeleton.port() == 0 ) {
  	    throw new IllegalStateException("IllegalStateException!");
 	}    
 	
@@ -165,15 +165,21 @@ public abstract class Stub
 	ClassLoader cl = c.getClassLoader();
 	T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
 
-	Method[] allmethods = stub.getClass().getMethods();
+	Method[] allmethods = stub.getClass().getDeclaredMethods();
 	int rmi_ex = 0;
-	for ( int i = 0; i < allmethods.length; i++ ) {
-		Class<?>[] all_ex = allmethods[i].getExceptionTypes();
+	int i = 0;
+	String em ="";
+	em = em + allmethods.length;
+	//em = em + RMIException.class.getName();
+	for ( i = 0; i < allmethods.length; i++ ) {
+	    Class<?>[] all_ex = allmethods[i].getExceptionTypes();
 	    rmi_ex = 0;
+	    em = em + all_ex.length;
 	    for ( int j = 0; j < all_ex.length; j++ ) {
+		em = em +" " + all_ex[j].getName() + " " ;
 	        if ( all_ex[j] == RMIException.class ) {
-	    	rmi_ex = 1;
-	    	break;	
+	    	    rmi_ex = 1;
+	    	    break;	
 	        }
 	    }
 	    if ( rmi_ex == 0 ) {
@@ -181,7 +187,12 @@ public abstract class Stub
 	    }
 	}
 	if ( rmi_ex == 0 ) {
-		throw new Error("Error!");
+	    //System.out.println(i);
+	    throw new Error("Error!" + allmethods.length+" "+allmethods[0].getName() +" "+allmethods[1].getName() +" "+allmethods[2].getName() +" "+allmethods[3].getName() +" "+allmethods[4].getName() + " " +RMIException.class.getName());
+	    // throw new Error("Error!" + allmethods.length+" "+allmethods[0].getExceptionTypes().length +" "+allmethods[1].getExceptionTypes().length +" "+allmethods[2].getExceptionTypes().length +" "+allmethods[3].getExceptionTypes().length +" "+allmethods[4].getExceptionTypes().length + " " +RMIException.class.getName());
+	    
+	    //throw new Error("Error!" + em);
+	
 	}
 
 	return stub;
@@ -233,7 +244,7 @@ public abstract class Stub
 	ClassLoader cl = c.getClassLoader();
 	T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
 	
-	Method[] allmethods = stub.getClass().getMethods();
+	Method[] allmethods = stub.getClass().getDeclaredMethods();
 	
 	int rmi_ex = 0;
 	for ( int i = 0; i < allmethods.length; i++ ) {
@@ -283,7 +294,7 @@ public abstract class Stub
 	ClassLoader cl = c.getClassLoader();
 	try {
 	    T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
-	    Method[] allmethods = stub.getClass().getMethods();
+	    Method[] allmethods = stub.getClass().getDeclaredMethods();
 	    
 	    int rmi_ex = 0;
 	    for ( int i = 0; i < allmethods.length; i++ ) {
