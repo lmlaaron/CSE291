@@ -81,7 +81,7 @@ public class Skeleton<T>
     public Skeleton(Class<T> c, T server)
     {
         //throw new UnsupportedOperationException("not implemented");	
-	Method[] allmethods = c.getMethods();
+	Method[] allmethods = c.getDeclaredMethods();
 	int rmi_ex = 0;
 	for ( int i = 0; i < allmethods.length; i++ ) {
 		Class<?>[] all_ex = allmethods[i].getExceptionTypes();
@@ -131,7 +131,7 @@ public class Skeleton<T>
     public Skeleton(Class<T> c, T server, InetSocketAddress address)
     {
         //throw new UnsupportedOperationException("not implemented");
-	Method[] allmethods = c.getMethods();
+	Method[] allmethods = c.getDeclaredMethods();
 	int rmi_ex = 0;
 	for ( int i = 0; i < allmethods.length; i++ ) {
 		Class<?>[] all_ex = allmethods[i].getExceptionTypes();

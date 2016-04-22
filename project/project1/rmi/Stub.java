@@ -14,9 +14,20 @@ import java.lang.reflect.Proxy;
 
 class MyInvocationHandler  implements InvocationHandler{
     private InetSocketAddress address;
-    private String hostname;
-    public MyInvocationHandler(InetSocketAddress address) {
+    //private String hostname;
+    //public String getHostName() {
+    //	return this.hostname;
+    //}
+    public InetSocketAddress getInetSocketAddress() {
+        return this.InetSocketAddress;
+    }
+    private Class<?> remoteInterface;
+    private Class<?> getInterface() {
+    	return remoteInterface;
+    }
+    public MyInvocationHandler(InetSocketAddress address, Class<?> remoteInterface) {
     	this.address = address;
+	this.remoteInterface = remoteInterface;
     } 
     public MyInvocationHandler(String hostname) {
     	this.hostname = hostname;
@@ -161,22 +172,22 @@ public abstract class Stub
 	    }
    	}
 
-	MyInvocationHandler h = new MyInvocationHandler(new InetSocketAddress( skeleton.hostname(), skeleton.port() ));
+	MyInvocationHandler h = new MyInvocationHandler(new InetSocketAddress( skeleton.hostname(), skeleton.port() ), c);
 	ClassLoader cl = c.getClassLoader();
 	T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
 
 	Method[] allmethods = stub.getClass().getDeclaredMethods();
 	int rmi_ex = 0;
 	int i = 0;
-	String em ="";
-	em = em + allmethods.length;
+	//String em ="";
+	//em = em + allmethods.length;
 	//em = em + RMIException.class.getName();
 	for ( i = 0; i < allmethods.length; i++ ) {
 	    Class<?>[] all_ex = allmethods[i].getExceptionTypes();
 	    rmi_ex = 0;
-	    em = em + all_ex.length;
+	    //em = em + all_ex.length;
 	    for ( int j = 0; j < all_ex.length; j++ ) {
-		em = em +" " + all_ex[j].getName() + " " ;
+		//em = em +" " + all_ex[j].getName() + " " ;
 	        if ( all_ex[j] == RMIException.class ) {
 	    	    rmi_ex = 1;
 	    	    break;	
@@ -240,7 +251,7 @@ public abstract class Stub
  	    throw new IllegalStateException("IllegalStateException!");
 	}
 	
-	MyInvocationHandler h = new MyInvocationHandler(new InetSocketAddress( hostname, skeleton.port()));
+	MyInvocationHandler h = new MyInvocationHandler(new InetSocketAddress( hostname, skeleton.port()), c);
 	ClassLoader cl = c.getClassLoader();
 	T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
 	
@@ -290,7 +301,7 @@ public abstract class Stub
 		throw new NullPointerException("null pointer!");
 	}
 	
-	MyInvocationHandler h = new MyInvocationHandler(address);
+	MyInvocationHandler h = new MyInvocationHandler(address, c);
 	ClassLoader cl = c.getClassLoader();
 	try {
 	    T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
@@ -317,7 +328,33 @@ public abstract class Stub
 	} catch ( Error err) {
 	    throw err;
 	} catch ( Exception e) {
-	    throw new Error("error");	
+	    throw new Error("error");
+    	    
+	}
+    }
+    
+    @Override
+    public <T> boolean equals(T other) throws RMIException {
+	// currently assume same address(hostname, portnumber) indicates same skeleton, which might be problematic, to be modified later
+    	return ( (getInvocationHandler(this).getInetSocketAddress() == getInvocationHandler(other).getInetSocketAddress() ) && ( getInvocationHandler(this).getInetSocketAddress() != null) && ( getInvocationHandler(this).getInterface() == getInvocationHandler(other).getInterface() ) && (getInvocationHandler(this).getInterface() != null) );
+    }
+    
+    @Override 
+    public int hashcode() throws RMIException {
+        try {
+
+	} catch (Throwable t) {
+	    throw new RMIException("RMIException");
+	}	
+    }
+
+    @Override
+    public String toString() throws RMIException {
+        try { 
+	    String ret = "Name of RemoteInterface: " + getInvocationHandler(this).getInterface().getName() + " remote address: " + getInvocationHandler(this).getInetSocketAddress().getHostName() + "; " +getInvocationHandler(this).getInetSocketAddress().getPort(); 
+	    return ret;    
+	} catch (Throwable t ) {
+	    throw new RMIException("RMIException");	
 	}
     }
 }
