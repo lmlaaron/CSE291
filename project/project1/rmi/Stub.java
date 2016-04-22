@@ -22,7 +22,7 @@ class MyInvocationHandler  implements InvocationHandler{
         return this.address;
     }
     private Class<?> remoteInterface;
-    private Class<?> getInterface() {
+    public Class<?> getInterface() {
     	return remoteInterface;
     }
     public MyInvocationHandler(InetSocketAddress address, Class<?> remoteInterface) {
@@ -40,11 +40,45 @@ class MyInvocationHandler  implements InvocationHandler{
 		String method_name = m.getName();
 		Class<?>[] classes = m.getParameterTypes();
 		Class<?>[] exceptions = m.getExceptionTypes();
+
+		// handle equals separately
+		if ( m.getName() == "equals" ) {
+		    if ( args.length != 1 ) {
+		        throw new Error("equal signature mismatch");
+		    }
+		    if (this == null && args[0] == null ) {
+		    	return true;
+		    } else if ( this == null || args[0] == null ) {
+		    	return false;
+		    } else {
+		        MyInvocationHandler mih = this;
+		        InetSocketAddress maddr = mih.getInetSocketAddress();
+		        MyInvocationHandler oih = (MyInvocationHandler) Proxy.getInvocationHandler(args[0]);
+		        InetSocketAddress oaddr = oih.getInetSocketAddress();
+		        return ((mih.getInterface() == oih.getInterface()) && (maddr == oaddr) );
+		    }
+		} else if ( m.getName() =="hashCode") {
+		    MyInvocationHandler mih = this;
+		    InetSocketAddress addr = mih.getInetSocketAddress();
+	            final int prime = 31;
+	            int ret = 0;
+	            Class<?> c = mih.getInterface();
+	            String ret_str = ( addr.toString() + c.toString() );
+	            return ret = ret_str.hashCode();
+		} else if ( m.getName() == "toString") {
+	            MyInvocationHandler mih = this;
+		    InetSocketAddress addr = mih.getInetSocketAddress();
+		    String ret = "Name of RemoteInterface: " + mih.getInterface() + " remote address: " + addr.getHostName() + "; " + addr.getPort(); 
+	            return ret;
+		}
 		int method_argc = classes.length;
 		int method_exc = exceptions.length; 
 		Class<?> return_class = m.getReturnType();
 		Constructor<?> cons = return_class.getConstructor();
 		return_obj = cons.newInstance();
+
+
+
 		//args
 		
 		Socket socket = new Socket(address.getHostName(), address.getPort());
@@ -185,6 +219,11 @@ public abstract class Stub
 	for ( i = 0; i < allmethods.length; i++ ) {
 	    Class<?>[] all_ex = allmethods[i].getExceptionTypes();
 	    rmi_ex = 0;
+
+	    if ( allmethods[i].getName() == "equals" ||  allmethods[i].getName() == "toString" ||  allmethods[i].getName() == "hashCode") {
+	    	rmi_ex = 1;
+		continue;
+	    } 
 	    //em = em + all_ex.length;
 	    for ( int j = 0; j < all_ex.length; j++ ) {
 		//em = em +" " + all_ex[j].getName() + " " ;
@@ -195,11 +234,12 @@ public abstract class Stub
 	    }
 	    if ( rmi_ex == 0 ) {
 	        break;
+		//throw new Error("Error!"+allmethods[i].getName());
 	    }
 	}
 	if ( rmi_ex == 0 ) {
 	    //System.out.println(i);
-	    throw new Error("Error!" + allmethods.length+" "+allmethods[0].getName() +" "+allmethods[1].getName() +" "+allmethods[2].getName() +" "+allmethods[3].getName() +" "+allmethods[4].getName() + " " +RMIException.class.getName());
+	    throw new Error("Error!" + allmethods.length+" "+allmethods[1].getParameterTypes().length +" "+allmethods[1].getName() +" "+allmethods[2].getName() +" "+allmethods[3].getName() +" "+allmethods[4].getName() + " " +RMIException.class.getName());
 	    // throw new Error("Error!" + allmethods.length+" "+allmethods[0].getExceptionTypes().length +" "+allmethods[1].getExceptionTypes().length +" "+allmethods[2].getExceptionTypes().length +" "+allmethods[3].getExceptionTypes().length +" "+allmethods[4].getExceptionTypes().length + " " +RMIException.class.getName());
 	    
 	    //throw new Error("Error!" + em);
@@ -259,8 +299,12 @@ public abstract class Stub
 	
 	int rmi_ex = 0;
 	for ( int i = 0; i < allmethods.length; i++ ) {
-		Class<?>[] all_ex = allmethods[i].getExceptionTypes();
 	    rmi_ex = 0;
+	    if ( allmethods[i].getName() == "equals" ||  allmethods[i].getName() == "toString" ||  allmethods[i].getName() == "hashCode") {
+	    	rmi_ex = 1;
+		continue;
+	    }
+	    Class<?>[] all_ex = allmethods[i].getExceptionTypes();
 	    for ( int j = 0; j < all_ex.length; j++ ) {
 	        if ( all_ex[j] == RMIException.class ) {
 	    	rmi_ex = 1;
@@ -311,7 +355,13 @@ public abstract class Stub
 	    for ( int i = 0; i < allmethods.length; i++ ) {
 	    	Class<?>[] all_ex = allmethods[i].getExceptionTypes();
 	        rmi_ex = 0;
-	        for ( int j = 0; j < all_ex.length; j++ ) {
+	        
+		if ( allmethods[i].getName() == "equals" ||  allmethods[i].getName() == "toString" || allmethods[i].getName() == "hashCode") {
+	    	    rmi_ex = 1;
+		    continue;
+	        }
+		
+		for ( int j = 0; j < all_ex.length; j++ ) {
 	            if ( all_ex[j] == RMIException.class ) {
 	        	rmi_ex = 1;
 	        	break;	
@@ -332,35 +382,35 @@ public abstract class Stub
     	    
 	}
     }
-    
-    public boolean equals(Object other) throws RMIException {
-	// currently assume same address(hostname, portnumber) indicates same skeleton, which might be problematic, to be modified later
-    	try {
-	    return ( (getInvocationHandler(this).getInetSocketAddress() == getInvocationHandler(other).getInetSocketAddress() ) && ( getInvocationHandler(this).getInetSocketAddress() != null) && ( getInvocationHandler(this).getInterface() == getInvocationHandler(other).getInterface() ) && (getInvocationHandler(this).getInterface() != null) );
-	} catch (Throwable t) {
-	    throw new RMIException("RMIException");
-	}
+   
+
+    // the bottom code is misplaced, should be in the involcationhandler
+    /*
+    public boolean equals(Object other) {
+	MyInvocationHandler mih = (MyInvocationHandler) Proxy.getInvocationHandler(this);
+	InetSocketAddress maddr = mih.getInetSocketAddress();
+	MyInvocationHandler oih = (MyInvocationHandler) Proxy.getInvocationHandler(other);
+	InetSocketAddress oaddr = oih.getInetSocketAddress();
+
+	return ((mih.getInterface() == oih.getInterface()) && maddr == oaddr );
     }
     
-    public int hashcode() throws RMIException {
-        try {
-	    final int prime = 31;
-	    int ret = 0;
-	    InetSocketAddress addr = getInvocationHandler(this).getInetSocketAddress();
-	    Class<?> c = getInvocationHandler(this).getInterface();
-	    ret = ( addr.toString() + c.toString() ).hashcode();
-	    return ret;
-	} catch (Throwable t) {
-	    throw new RMIException("RMIException");
-	}	
+    public int hashCode() {
+	final int prime = 31;
+	int ret = 0;
+	MyInvocationHandler mih = (MyInvocationHandler) Proxy.getInvocationHandler(this);
+	InetSocketAddress addr = mih.getInetSocketAddress();
+	Class<?> c = mih.getInterface();
+	String ret_str = ( addr.toString() + c.toString() );
+	return ret = ret_str.hashCode();
     }
 
-    public String toString() throws RMIException {
-        try { 
-	    String ret = "Name of RemoteInterface: " + getInvocationHandler(this).getInterface().getName() + " remote address: " + getInvocationHandler(this).getInetSocketAddress().getHostName() + "; " +getInvocationHandler(this).getInetSocketAddress().getPort(); 
-	    return ret;    
-	} catch (Throwable t ) {
-	    throw new RMIException("RMIException");	
-	}
+    public String toString() {
+	MyInvocationHandler mih = (MyInvocationHandler) Proxy.getInvocationHandler(this);
+	InetSocketAddress addr = mih.getInetSocketAddress();
+
+	String ret = "Name of RemoteInterface: " + mih.getInterface() + " remote address: " + addr.getHostName() + "; " + addr.getPort(); 
+	return ret;
     }
+    */
 }

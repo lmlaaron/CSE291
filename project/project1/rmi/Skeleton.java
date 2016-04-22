@@ -84,6 +84,9 @@ public class Skeleton<T>
 	Method[] allmethods = c.getDeclaredMethods();
 	int rmi_ex = 0;
 	for ( int i = 0; i < allmethods.length; i++ ) {
+	    if ( allmethods[i].getName() == "equals" ||  allmethods[i].getName() == "toString" || allmethods[i].getName() == "hashCode") {
+	    	continue;
+	    }
 		Class<?>[] all_ex = allmethods[i].getExceptionTypes();
 	    rmi_ex = 0;
 	    for ( int j = 0; j < all_ex.length; j++ ) {
@@ -134,7 +137,11 @@ public class Skeleton<T>
 	Method[] allmethods = c.getDeclaredMethods();
 	int rmi_ex = 0;
 	for ( int i = 0; i < allmethods.length; i++ ) {
-		Class<?>[] all_ex = allmethods[i].getExceptionTypes();
+	    if ( allmethods[i].getName() == "equals" ||  allmethods[i].getName() == "toString" || allmethods[i].getName() == "hashCode") {
+	    	rmi_ex = 1;
+		continue;
+	    }
+	    Class<?>[] all_ex = allmethods[i].getExceptionTypes();
 	    rmi_ex = 0;
 	    for ( int j = 0; j < all_ex.length; j++ ) {
 	        if ( all_ex[j] == RMIException.class ) {

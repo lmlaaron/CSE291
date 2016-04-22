@@ -390,7 +390,8 @@ public class StubTest extends Test
         TestInterface   stub3 =
             Stub.create(TestInterface.class, new InetSocketAddress(80));
 
-        // Check that stubs are not equal to null.
+
+         // Check that stubs are not equal to null.
         try
         {
             if(stub1.equals(null))
