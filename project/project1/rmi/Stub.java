@@ -85,10 +85,13 @@ class MyInvocationHandler  implements InvocationHandler{
 		out.writeObject(method_name);
 		out.writeObject(method_argc);
 		
-		for ( int i = 0; i < method_argc; i++ ) {
-		    out.writeObject(classes[i]);
-                    out.writeObject(args[i]);
-		}
+		out.writeObject(classes);		
+		out.writeObject(args);
+
+		//for ( int i = 0; i < method_argc; i++ ) {
+		//    out.writeObject(classes[i]);
+                //    out.writeObject(args[i]);
+		//}
 
 		//for ( int i = 0; i < classes.length; i++ ) {
 		//    out.writeObject(classes[i]);
@@ -115,14 +118,20 @@ class MyInvocationHandler  implements InvocationHandler{
 		if ( exceptionNum == -1 ) {
 		    return_obj = return_class.cast(in.readObject());
 		    //return_obj = in.readObject();
+		} else if ( exceptionNum == exceptions.length ) {
+		    //throw new Error("Error!");
 		} else {
-		    return_obj = exceptions[exceptionNum].cast(in.readObject());
+		    //Exception t = exceptions[exceptionNum].cast(in.readObject());
+		    Throwable t = (Throwable) in.readObject();
+		    throw t;
 		    //return_obj = in.readObject();
 		}
 		//in.close();
 
 	    } catch (InvocationTargetException e) {
 	        throw e;
+	    } catch (FileNotFoundException e) {
+		throw e;
 	    } catch (IOException e) {
 	        throw new RMIException("Fail to invoke a remote call");
 	    } catch (Exception e) {

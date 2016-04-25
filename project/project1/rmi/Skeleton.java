@@ -330,7 +330,8 @@ class Listener<T> implements Runnable {
  	        if ( ! this.skeleton.isStopped() ) {
 		    //socket = this.skeleton.serverSocket.accept();
  	    	    Socket socket = this.serverSocket.accept();
-		    new Thread( new ClientWorker(socket, this.skeleton.server().getClass() ) ).start();
+		    new Thread( new ClientWorker(socket, this.skeleton.server() )).start();
+		    //new Thread( new ClientWorker(socket, this.skeleton.server().getClass() ) ).start();
 	    	} else {
 		    return;
 		}
@@ -355,14 +356,17 @@ class Listener<T> implements Runnable {
 }
 
 
-class ClientWorker implements Runnable {
+class ClientWorker<T> implements Runnable {
     private Socket socket;
-    private Class<?> server_class;
+    //private Class<?> server_class;
+    private T server;
     final int MAX_ARGC = 200;
     
-    ClientWorker(Socket socket, Class<?> server_class) {
+    //ClientWorker(Socket socket, Class<?> server_class) {
+    ClientWorker(Socket socket, T server) {
       this.socket = socket;
-      this.server_class = server_class;
+      //this.server_class = server_class;
+      this.server = server;
     }
 
     public void run() {
@@ -382,14 +386,14 @@ class ClientWorker implements Runnable {
             Class<?>[] classes = new Class<?>[method_argc];
             Object[] args = new Object[method_argc];
             try { 
-		for ( int i = 0; i < method_argc; i++ ) {
-		    classes[i] = (Class<?>) in.readObject();
-		    args[i] = in.readObject();
-		    if (classes[i].getName() == "boolean") { 
-			Boolean temp = (Boolean) args[i];
-			args[i] = temp.booleanValue();
-		    }
-		}
+
+		classes = (Class<?>[])in.readObject();		
+		args = (Object[])in.readObject();
+		//for ( int i = 0; i < method_argc; i++ ) {
+		//    classes[i] = (Class<?>) in.readObject();
+		//    args[i] = in.readObject();
+		//    }
+		//}
 		
                 //for ( int i = 0; i < method_argc; i++ ) {
                 //    classes[i] = (Class<?>) in.readObject();
@@ -405,10 +409,11 @@ class ClientWorker implements Runnable {
             Method method;
             int exceptionNum = -1;
             try {
-                method = this.server_class.getMethod(method_name, classes);
+                //method = this.server_class.getMethod(method_name, classes);
+                method = this.server.getClass().getMethod(method_name, classes);
             } catch ( NoSuchMethodException e ) {
         	throw e;
-            }
+	    }
 
             //in.close();
             
@@ -417,18 +422,22 @@ class ClientWorker implements Runnable {
 	    //System.out.println(socket.isClosed());
             ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream()); 
             try {
-		//System.out.println(this.server_class);
-                return_obj = method.invoke(this.server_class, args); // 有问题
+		//System.out.println(method.getName());
+                //return_obj = method.invoke(this.server_class, args);
+                return_obj = method.invoke(this.server, args);
                 out.writeObject(-1);
                 out.writeObject(return_obj);
-            } catch ( Exception ex ) {
+		//System.out.println("一颗赛艇！");
+            } catch ( InvocationTargetException e ) {
                 int i;
+		Throwable ex = e.getCause();
                 for ( i = 0; i < exceptions.length; i++ ) {
                     if ( exceptions[i] == ex.getClass() ) {
                         exceptionNum = i;
             	        break;
             	    }
                 }
+		//System.out.println(ex.getClass());
                 out.writeObject(i);
                 out.writeObject(ex);
             }
