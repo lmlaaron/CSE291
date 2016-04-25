@@ -402,7 +402,7 @@ class ClientWorker<T> implements Runnable {
                 //for (int i = 0; i < method_argc; i++ ) {
                 //        args[i] = classes[i].cast(in.readObject());
                 //}
-                return_class = (Class<?>) in.readObject();
+                //return_class = (Class<?>) in.readObject();
             } catch ( ClassNotFoundException e ) {
         	throw e;
             }

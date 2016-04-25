@@ -35,7 +35,7 @@ class MyInvocationHandler  implements InvocationHandler{
 
     @Override
     public Object invoke(Object proxy, Method m, Object[] args) throws Throwable {
-        Object return_obj;
+        Object return_obj = null;
         try{
 		String method_name = m.getName();
 		Class<?>[] classes = m.getParameterTypes();
@@ -74,10 +74,10 @@ class MyInvocationHandler  implements InvocationHandler{
 		int method_argc = classes.length;
 		int method_exc = exceptions.length; 
 		Class<?> return_class = m.getReturnType();
-		Constructor<?> cons = return_class.getConstructor();
-		return_obj = cons.newInstance();
+		//Constructor<?> cons = return_class.getConstructor();
+		//return_obj = cons.newInstance();
 		//args
-		
+		//System.out.println("一颗赛艇！");	
 		Socket socket = new Socket(address.getHostName(), address.getPort());
 		// Connect Exception 
 		
@@ -107,7 +107,7 @@ class MyInvocationHandler  implements InvocationHandler{
 		//    out.writeObject(exceptions[i]);
 		//}
 
-		out.writeObject(return_class);
+		//out.writeObject(return_class);
 		
 		out.flush();
 		//out.close();
