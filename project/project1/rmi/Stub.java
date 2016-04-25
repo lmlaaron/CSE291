@@ -20,6 +20,7 @@ class MyInvocationHandler  implements InvocationHandler{
     //}
     public InetSocketAddress getInetSocketAddress() {
         return this.address;
+        
     }
     private Class<?> remoteInterface;
     public Class<?> getInterface() {
@@ -55,7 +56,7 @@ class MyInvocationHandler  implements InvocationHandler{
 		        InetSocketAddress maddr = mih.getInetSocketAddress();
 		        MyInvocationHandler oih = (MyInvocationHandler) Proxy.getInvocationHandler(args[0]);
 		        InetSocketAddress oaddr = oih.getInetSocketAddress();
-		        return ((mih.getInterface() == oih.getInterface()) && (maddr == oaddr) );
+		        return ((mih.getInterface() == oih.getInterface()) && (maddr.equals(oaddr)));
 		    }
 		} else if ( m.getName() =="hashCode") {
 		    MyInvocationHandler mih = this;
@@ -77,25 +78,28 @@ class MyInvocationHandler  implements InvocationHandler{
 		Constructor<?> cons = return_class.getConstructor();
 		return_obj = cons.newInstance();
 
-
-
 		//args
 		
 		Socket socket = new Socket(address.getHostName(), address.getPort());
 		// Connect Exception 
 		
-		ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream()); 
-
+		ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
 		out.writeObject(method_name);
 		out.writeObject(method_argc);
-		for ( int i = 0; i < classes.length; i++ ) {
+		
+		for ( int i = 0; i < method_argc; i++ ) {
 		    out.writeObject(classes[i]);
+                    out.writeObject(args[i]);
 		}
 
+		//for ( int i = 0; i < classes.length; i++ ) {
+		//    out.writeObject(classes[i]);
+		//}
+
 		// need to serialize the argument
-	        for ( int i = 0; i < args.length; i++ ) {
-		    out.writeObject(args[i]);
-		}
+	        //for ( int i = 0; i < args.length; i++ ) {
+		//    out.writeObject(args[i]);
+		//}
 
 		//out.writeObject(method_exc);
 		//for ( int i =0; i < exceptions.length; i++ ) {
@@ -106,21 +110,26 @@ class MyInvocationHandler  implements InvocationHandler{
 		
 		out.flush();
 		out.close();
+		
 		ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
 		
 		int exceptionNum = (int) in.readObject(); 
 		if ( exceptionNum == -1 ) {
 		    return_obj = return_class.cast(in.readObject());
+		    //return_obj = in.readObject();
 		} else {
 		    return_obj = exceptions[exceptionNum].cast(in.readObject());
+		    //return_obj = in.readObject();
 		}
 		in.close();
 
 	    } catch (InvocationTargetException e) {
 	        throw e;
+	    } catch (IOException e) {
+	        throw new RMIException("Fail to invoke a remote call");
 	    } catch (Exception e) {
-	        throw e;
-	    }
+		throw e;
+	    } 
         return return_obj;
     }
 }

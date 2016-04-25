@@ -112,6 +112,7 @@ public class ConnectionTest extends Test
         }
         catch(Throwable t)
         {
+	    //System.out.println(t.getClass().getName());
             throw new TestFailed("unexpected exception when using stub", t);
         }
 

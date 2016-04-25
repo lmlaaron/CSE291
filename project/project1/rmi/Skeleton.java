@@ -303,10 +303,10 @@ public class Skeleton<T>
 	}
 	if ( this.listen_thread != null && this.listen_thread.isAlive() ) {
 	    this.listen_thread.stop();
-	    try {
-		this.serverSocket.close();
-	    } catch ( Exception e ) {
-	    }
+            try {
+	        this.serverSocket.close();
+            } catch ( Exception e ) {
+            }
 	}
 	this.stopped(null);
 	return;
@@ -365,24 +365,35 @@ class ClientWorker implements Runnable {
       this.server_class = server_class;
     }
 
-    public void run(){
+    public void run() {
         try {
             ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-            Class<?>[] classes = new Class<?>[MAX_ARGC];
-            Object[] args = new Object[MAX_ARGC];
+            //Class<?>[] classes = new Class<?>[MAX_ARGC];
+            //Object[] args = new Object[MAX_ARGC];
             Class<?> return_class;
             String method_name;
             Integer method_argc;
             try { 
                 method_name = (String) in.readObject();
            	method_argc = (Integer) in.readObject();
-                for ( int i = 0; i < method_argc; i++ ) {
-                    classes[i] = (Class<?>) in.readObject();
-                }
-
-                for (int i = 0; i < method_argc; i++ ) {
-                        args[i] = classes[i].cast(in.readObject());
-                }
+            } catch ( ClassNotFoundException e ) {
+        	throw e;
+            }
+            Class<?>[] classes = new Class<?>[method_argc];
+            Object[] args = new Object[method_argc];
+            try { 
+		for ( int i = 0; i < method_argc; i++ ) {
+		    classes[i] = (Class<?>) in.readObject();
+		    args[i] = in.readObject();
+		}
+		
+                //for ( int i = 0; i < method_argc; i++ ) {
+                //    classes[i] = (Class<?>) in.readObject();
+                //}
+		
+                //for (int i = 0; i < method_argc; i++ ) {
+                //        args[i] = classes[i].cast(in.readObject());
+                //}
                 return_class = (Class<?>) in.readObject();
             } catch ( ClassNotFoundException e ) {
         	throw e;
@@ -396,10 +407,14 @@ class ClientWorker implements Runnable {
             }
 
             in.close();
+            
             Class<?>[] exceptions = method.getExceptionTypes();
             Object return_obj;
-            
+	    System.out.println(socket.isClosed());
+            //OutputStream oso = socket.getOutputStream();
             ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream()); 
+            //ObjectOutputStream out = new ObjectOutputStream(oso); 
+	    //System.out.println("haha");
             try {
                 return_obj = method.invoke(this.server_class, args);
                 out.writeObject(-1);
@@ -409,8 +424,8 @@ class ClientWorker implements Runnable {
                 for ( i = 0; i < exceptions.length; i++ ) {
                     if ( exceptions[i] == ex.getClass() ) {
                         exceptionNum = i;
-            	    break;
-            	}
+            	        break;
+            	    }
                 }
                 out.writeObject(i);
                 out.writeObject(ex);
@@ -419,12 +434,14 @@ class ClientWorker implements Runnable {
             out.close();
             socket.close();
         } catch (IOException e ) {
+	    System.out.println(e);
             //throw e.getMessage();
         } catch (ClassNotFoundException e) {
-            //throw e;
+	    System.out.println(e);
         } catch (NoSuchMethodException e) {
-        //throw e;
-        }
+	    System.out.println(e);
+        } catch (Exception e) {
+	    System.out.println(e);
+	}
     }    
 }
-
