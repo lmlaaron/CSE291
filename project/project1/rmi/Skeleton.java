@@ -385,6 +385,10 @@ class ClientWorker implements Runnable {
 		for ( int i = 0; i < method_argc; i++ ) {
 		    classes[i] = (Class<?>) in.readObject();
 		    args[i] = in.readObject();
+		    if (classes[i].getName() == "boolean") { 
+			Boolean temp = (Boolean) args[i];
+			args[i] = temp.booleanValue();
+		    }
 		}
 		
                 //for ( int i = 0; i < method_argc; i++ ) {
@@ -406,17 +410,15 @@ class ClientWorker implements Runnable {
         	throw e;
             }
 
-            in.close();
+            //in.close();
             
             Class<?>[] exceptions = method.getExceptionTypes();
             Object return_obj;
-	    System.out.println(socket.isClosed());
-            //OutputStream oso = socket.getOutputStream();
+	    //System.out.println(socket.isClosed());
             ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream()); 
-            //ObjectOutputStream out = new ObjectOutputStream(oso); 
-	    //System.out.println("haha");
             try {
-                return_obj = method.invoke(this.server_class, args);
+		//System.out.println(this.server_class);
+                return_obj = method.invoke(this.server_class, args); // 有问题
                 out.writeObject(-1);
                 out.writeObject(return_obj);
             } catch ( Exception ex ) {
@@ -431,17 +433,17 @@ class ClientWorker implements Runnable {
                 out.writeObject(ex);
             }
             out.flush();
-            out.close();
+            //out.close();
             socket.close();
         } catch (IOException e ) {
-	    System.out.println(e);
+	    //System.out.println(e);
             //throw e.getMessage();
         } catch (ClassNotFoundException e) {
-	    System.out.println(e);
+	    //System.out.println(e);
         } catch (NoSuchMethodException e) {
-	    System.out.println(e);
+	    //System.out.println(e);
         } catch (Exception e) {
-	    System.out.println(e);
+	    //System.out.println(e);
 	}
     }    
 }

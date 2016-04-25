@@ -20,7 +20,6 @@ class MyInvocationHandler  implements InvocationHandler{
     //}
     public InetSocketAddress getInetSocketAddress() {
         return this.address;
-        
     }
     private Class<?> remoteInterface;
     public Class<?> getInterface() {
@@ -77,7 +76,6 @@ class MyInvocationHandler  implements InvocationHandler{
 		Class<?> return_class = m.getReturnType();
 		Constructor<?> cons = return_class.getConstructor();
 		return_obj = cons.newInstance();
-
 		//args
 		
 		Socket socket = new Socket(address.getHostName(), address.getPort());
@@ -109,7 +107,7 @@ class MyInvocationHandler  implements InvocationHandler{
 		out.writeObject(return_class);
 		
 		out.flush();
-		out.close();
+		//out.close();
 		
 		ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
 		
@@ -121,7 +119,7 @@ class MyInvocationHandler  implements InvocationHandler{
 		    return_obj = exceptions[exceptionNum].cast(in.readObject());
 		    //return_obj = in.readObject();
 		}
-		in.close();
+		//in.close();
 
 	    } catch (InvocationTargetException e) {
 	        throw e;
