@@ -360,7 +360,7 @@ class ClientWorker<T> implements Runnable {
     private Socket socket;
     //private Class<?> server_class;
     private T server;
-    final int MAX_ARGC = 200;
+    //final int MAX_ARGC = 200;
     
     //ClientWorker(Socket socket, Class<?> server_class) {
     ClientWorker(Socket socket, T server) {
