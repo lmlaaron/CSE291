@@ -381,30 +381,15 @@ class ClientWorker<T> implements Runnable {
                 method_name = (String) in.readObject();
            	method_argc = (Integer) in.readObject();
             } catch ( ClassNotFoundException e ) {
-        	throw e;
+       	        throw e;
             }
             Class<?>[] classes = new Class<?>[method_argc];
             Object[] args = new Object[method_argc];
             try { 
-
 		classes = (Class<?>[])in.readObject();		
 		args = (Object[])in.readObject();
-		//for ( int i = 0; i < method_argc; i++ ) {
-		//    classes[i] = (Class<?>) in.readObject();
-		//    args[i] = in.readObject();
-		//    }
-		//}
-		
-                //for ( int i = 0; i < method_argc; i++ ) {
-                //    classes[i] = (Class<?>) in.readObject();
-                //}
-		
-                //for (int i = 0; i < method_argc; i++ ) {
-                //        args[i] = classes[i].cast(in.readObject());
-                //}
-                //return_class = (Class<?>) in.readObject();
             } catch ( ClassNotFoundException e ) {
-        	throw e;
+                  throw e;
             }
             Method method;
             int exceptionNum = -1;
@@ -414,6 +399,9 @@ class ClientWorker<T> implements Runnable {
             } catch ( NoSuchMethodException e ) {
         	throw e;
 	    }
+	    if(!method.isAccessible()) {
+  	        method.setAccessible(true);
+	     }
 
             //in.close();
             
@@ -422,25 +410,24 @@ class ClientWorker<T> implements Runnable {
 	    //System.out.println(socket.isClosed());
             ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream()); 
             try {
-		//System.out.println(method.getName());
-                //return_obj = method.invoke(this.server_class, args);
                 return_obj = method.invoke(this.server, args);
                 out.writeObject(-1);
                 out.writeObject(return_obj);
-		//System.out.println("一颗赛艇！");
             } catch ( InvocationTargetException e ) {
-                int i;
+                int i=1;
 		Throwable ex = e.getCause();
-                for ( i = 0; i < exceptions.length; i++ ) {
-                    if ( exceptions[i] == ex.getClass() ) {
-                        exceptionNum = i;
-            	        break;
-            	    }
-                }
+                //for ( i = 0; i < exceptions.length; i++ ) {
+                //    if ( exceptions[i] == ex.getClass() ) {
+                //        exceptionNum = i;
+            	//        break;
+            	//    }
+                //}
 		//System.out.println(ex.getClass());
                 out.writeObject(i);
                 out.writeObject(ex);
-            }
+            //} catch ( Exception e ) {
+	    //    System.out.println(e.getClass());
+	    }
             out.flush();
             //out.close();
             socket.close();

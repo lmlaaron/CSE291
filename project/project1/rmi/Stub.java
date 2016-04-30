@@ -42,6 +42,7 @@ class MyInvocationHandler  implements InvocationHandler{
 		Class<?>[] exceptions = m.getExceptionTypes();
 
 		// handle equals separately
+		
 		if ( m.getName() == "equals" ) {
 		    if ( args.length != 1 ) {
 		        throw new Error("equal signature mismatch");
@@ -76,8 +77,6 @@ class MyInvocationHandler  implements InvocationHandler{
 		Class<?> return_class = m.getReturnType();
 		//Constructor<?> cons = return_class.getConstructor();
 		//return_obj = cons.newInstance();
-		//args
-		//System.out.println("一颗赛艇！");	
 		Socket socket = new Socket(address.getHostName(), address.getPort());
 		// Connect Exception 
 		
@@ -88,29 +87,7 @@ class MyInvocationHandler  implements InvocationHandler{
 		out.writeObject(classes);		
 		out.writeObject(args);
 
-		//for ( int i = 0; i < method_argc; i++ ) {
-		//    out.writeObject(classes[i]);
-                //    out.writeObject(args[i]);
-		//}
-
-		//for ( int i = 0; i < classes.length; i++ ) {
-		//    out.writeObject(classes[i]);
-		//}
-
-		// need to serialize the argument
-	        //for ( int i = 0; i < args.length; i++ ) {
-		//    out.writeObject(args[i]);
-		//}
-
-		//out.writeObject(method_exc);
-		//for ( int i =0; i < exceptions.length; i++ ) {
-		//    out.writeObject(exceptions[i]);
-		//}
-
-		//out.writeObject(return_class);
-		
 		out.flush();
-		//out.close();
 		
 		ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
 		
@@ -118,15 +95,13 @@ class MyInvocationHandler  implements InvocationHandler{
 		if ( exceptionNum == -1 ) {
 		    return_obj = return_class.cast(in.readObject());
 		    //return_obj = in.readObject();
-		} else if ( exceptionNum == exceptions.length ) {
+		//} else if ( exceptionNum == exceptions.length ) {
 		    //throw new Error("Error!");
 		} else {
 		    //Exception t = exceptions[exceptionNum].cast(in.readObject());
 		    Throwable t = (Throwable) in.readObject();
 		    throw t;
-		    //return_obj = in.readObject();
 		}
-		//in.close();
 
 	    } catch (InvocationTargetException e) {
 	        throw e;
@@ -204,13 +179,13 @@ public abstract class Stub
 	}    
 	
 	// currently assume if the server cannot be connected, then it is not started 
-	try {
-	    Socket soc = new Socket();
-	    soc.connect( new InetSocketAddress(skeleton.hostname(), skeleton.port()), TIMEOUT_MILLIS);
-	    soc.close();
-	} catch ( IOException e ) {
-		throw new IllegalStateException("IllegalStateException!");
-	}
+	//try {
+	//    Socket soc = new Socket();
+	//    soc.connect( new InetSocketAddress(skeleton.hostname(), skeleton.port()), TIMEOUT_MILLIS);
+	//    soc.close();
+	//} catch ( IOException e ) {
+	//	throw new IllegalStateException("IllegalStateException!");
+	//}
 		    
 	if ( skeleton.hostname() == null && skeleton.port() != 0 ) {
 	    try {
