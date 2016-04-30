@@ -74,7 +74,7 @@ class MyInvocationHandler  implements InvocationHandler{
 		}
 		int method_argc = classes.length;
 		int method_exc = exceptions.length; 
-		Class<?> return_class = m.getReturnType();
+		//Class<?> return_class = m.getReturnType();
 		//Constructor<?> cons = return_class.getConstructor();
 		//return_obj = cons.newInstance();
 		Socket socket = new Socket(address.getHostName(), address.getPort());
@@ -93,8 +93,8 @@ class MyInvocationHandler  implements InvocationHandler{
 		
 		int exceptionNum = (int) in.readObject(); 
 		if ( exceptionNum == -1 ) {
-		    return_obj = return_class.cast(in.readObject());
-		    //return_obj = in.readObject();
+		    //return_obj = return_class.cast(in.readObject());
+		    return_obj = in.readObject();
 		//} else if ( exceptionNum == exceptions.length ) {
 		    //throw new Error("Error!");
 		} else {
