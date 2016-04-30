@@ -205,7 +205,7 @@ public abstract class Stub
 	ClassLoader cl = c.getClassLoader();
 	T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
 
-	Method[] allmethods = stub.getClass().getDeclaredMethods();
+	Method[] allmethods = c.getDeclaredMethods();
 	int rmi_ex = 0;
 	int i = 0;
 	//String em ="";
@@ -290,7 +290,7 @@ public abstract class Stub
 	ClassLoader cl = c.getClassLoader();
 	T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
 	
-	Method[] allmethods = stub.getClass().getDeclaredMethods();
+	Method[] allmethods = c.getDeclaredMethods();
 	
 	int rmi_ex = 0;
 	for ( int i = 0; i < allmethods.length; i++ ) {
@@ -344,8 +344,9 @@ public abstract class Stub
 	ClassLoader cl = c.getClassLoader();
 	try {
 	    T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
-	    Method[] allmethods = stub.getClass().getDeclaredMethods();
-	    
+	    //Method[] allmethods = stub.getClass().getDeclaredMethods();
+	    Method[] allmethods = c.getDeclaredMethods();
+
 	    int rmi_ex = 0;
 	    for ( int i = 0; i < allmethods.length; i++ ) {
 	    	Class<?>[] all_ex = allmethods[i].getExceptionTypes();
