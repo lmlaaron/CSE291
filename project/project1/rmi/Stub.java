@@ -47,16 +47,20 @@ class MyInvocationHandler  implements InvocationHandler{
 		    if ( args.length != 1 ) {
 		        throw new Error("equal signature mismatch");
 		    }
-		    if (this == null && args[0] == null ) {
+		    if (proxy == null && args[0] == null ) {
 		    	return true;
-		    } else if ( this == null || args[0] == null ) {
+		    } else if ( proxy == null || args[0] == null ) {
 		    	return false;
 		    } else {
-		        MyInvocationHandler mih = this;
-		        InetSocketAddress maddr = mih.getInetSocketAddress();
-		        MyInvocationHandler oih = (MyInvocationHandler) Proxy.getInvocationHandler(args[0]);
-		        InetSocketAddress oaddr = oih.getInetSocketAddress();
-		        return ((mih.getInterface() == oih.getInterface()) && (maddr.equals(oaddr)));
+			try {
+		            MyInvocationHandler mih = this;
+		            InetSocketAddress maddr = mih.getInetSocketAddress();
+		            MyInvocationHandler oih = (MyInvocationHandler) Proxy.getInvocationHandler(args[0]);
+		            InetSocketAddress oaddr = oih.getInetSocketAddress();
+		            return ((mih.getInterface() == oih.getInterface()) && (maddr.equals(oaddr)));
+			} catch ( Throwable t ) {
+			    return false;
+			}
 		    }
 		} else if ( m.getName() =="hashCode") {
 		    MyInvocationHandler mih = this;
