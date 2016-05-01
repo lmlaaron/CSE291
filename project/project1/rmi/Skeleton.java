@@ -88,15 +88,12 @@ public class Skeleton<T>
 	   throw new NullPointerException("null");	
 	}
 
-	    //throw new UnsupportedOperationException("not implemented");	
+	// for all methods in the interface, check whether they throw RMIException
+	// If one of them does not throw RMIException, throw an Error
 	Method[] allmethods = c.getDeclaredMethods();
 	int rmi_ex = 0;
 	for ( int i = 0; i < allmethods.length; i++ ) {
-	    //if ( allmethods[i].getName() == "equals" ||  allmethods[i].getName() == "toString" || allmethods[i].getName() == "hashCode") {
-	    //	rmi_ex = 1;
-	    //	continue;
-	    //}
-		Class<?>[] all_ex = allmethods[i].getExceptionTypes();
+	    Class<?>[] all_ex = allmethods[i].getExceptionTypes();
 	    rmi_ex = 0;
 	    for ( int j = 0; j < all_ex.length; j++ ) {
 	        if ( all_ex[j] == RMIException.class ) {
@@ -109,11 +106,11 @@ public class Skeleton<T>
 	    }
 	}
 	if ( rmi_ex == 0 ) {
-		throw new Error("Error!");
+	    throw new Error("Error!");
 	}
 	    
 	if ( c == null || server == null ) {
-		throw new NullPointerException("NullPointerException");
+	    throw new NullPointerException("NullPointerException");
 	}
 	    
 	this.c = c;
@@ -149,21 +146,15 @@ public class Skeleton<T>
 	} else {
 	    throw new NullPointerException("null");
 	}
-        //throw new UnsupportedOperationException("not implemented");
 	Method[] allmethods = c.getDeclaredMethods();
 	int rmi_ex = 0;
-	//System.out.println("HAHAHA");
 	for ( int i = 0; i < allmethods.length; i++ ) {
-	    //if ( allmethods[i].getName() == "equals" ||  allmethods[i].getName() == "toString" || allmethods[i].getName() == "hashCode") {
-	    //	rmi_ex = 1;
-	    //    continue;
-	    //}
 	    Class<?>[] all_ex = allmethods[i].getExceptionTypes();
 	    rmi_ex = 0;
 	    for ( int j = 0; j < all_ex.length; j++ ) {
 	        if ( all_ex[j] == RMIException.class ) {
-	    	rmi_ex = 1;
-	    	break;	
+	            rmi_ex = 1;
+	    	    break;	
 	        }
 	    }
 	    if ( rmi_ex == 0 ) {
@@ -171,15 +162,15 @@ public class Skeleton<T>
 	    }
 	}
 	if ( allmethods.length != 0 && rmi_ex == 0 ) {
-		throw new Error("Error!");
+	    throw new Error("Error!");
 	}
 	    
 	if ( c == null || server == null ) {
-		throw new NullPointerException("NullPointerException");
+	    throw new NullPointerException("NullPointerException");
 	}
 	
 	if (!c.isInterface() ) {
-	 	throw new Error("not interface type!");
+	    throw new Error("not interface type!");
 	}    
 	this.c = c;
 	this.server = server;
@@ -259,8 +250,6 @@ public class Skeleton<T>
      */
     public synchronized void start() throws RMIException
     {
-        //throw new UnsupportedOperationException("not implemented");
-	
 	if ( this.hostname == "wildcard" ) {
 	    try {
 	    	this.hostname =InetAddress.getLocalHost().getHostAddress();
@@ -268,6 +257,8 @@ public class Skeleton<T>
 	    	throw new RMIException("cannot resolve host");
 	    }
 	};
+
+	// search for an available port
 	if (this.port == 0 ) {
 	    ServerSocket ss = null;
 	    int i = 0;
@@ -331,10 +322,11 @@ public class Skeleton<T>
 	this.isStopped = true;
 	this.stopped(null);
 	return;
-        //throw new UnsupportedOperationException("not implemented");
     }
 }
 
+
+// the listener thread listens the socket requests
 class Listener<T> implements Runnable {
     private Skeleton<T> skeleton;
     private ServerSocket serverSocket;
@@ -348,13 +340,10 @@ class Listener<T> implements Runnable {
 
     public void run() {
         while (! this.skeleton.isStopped() ) {
- 	    //Socket socket; 
  	    try {
  	        if ( ! this.skeleton.isStopped() ) {
-		    //socket = this.skeleton.serverSocket.accept();
  	    	    Socket socket = this.serverSocket.accept();
 		    new Thread( new ClientWorker(socket, this.skeleton.server(), this.skeleton, this.c)).start();
-		    //new Thread( new ClientWorker(socket, this.skeleton.server().getClass() ) ).start();
 	    	} else {
 		    return;
 		}
@@ -362,7 +351,6 @@ class Listener<T> implements Runnable {
  	        if(this.skeleton.isStopped()) {
                      return;
                  }
-                 //throw e; 
  	    }
 	}
 	return;
@@ -372,25 +360,22 @@ class Listener<T> implements Runnable {
 	    try {
 	        this.serverSocket.close();
 	    } catch (IOException e) {
-		    //throw new IOException("serverSocket cannot be closed");
 	    }
 	}
     }
 }
 
 
+// The thread is trigged if a socket request is accepted
+// The thread receives the signature of the called method
 class ClientWorker<T> implements Runnable {
     private Socket socket;
-    //private Class<?> server_class;
     private T server;
-    //final int MAX_ARGC = 200;
     private Skeleton<T> skeleton; 
     private Class<?> c;
     
-    //ClientWorker(Socket socket, Class<?> server_class) {
     ClientWorker(Socket socket, T server, Skeleton<T> skeleton, Class<?> c) {
         this.socket = socket;
-        //this.server_class = server_class;
         this.server = server;
         this.skeleton = skeleton;
         this.c = c;
@@ -399,8 +384,6 @@ class ClientWorker<T> implements Runnable {
     public void run() {
         try {
             ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-            //Class<?>[] classes = new Class<?>[MAX_ARGC];
-            //Object[] args = new Object[MAX_ARGC];
             Class<?> return_class;
             String method_name;
             Integer method_argc;
@@ -420,9 +403,9 @@ class ClientWorker<T> implements Runnable {
             }
             Method method;
             int exceptionNum = -1;
+	    // Take care that this.server.class and this.c can be different
+	    // this.server implements a superset of c
             try {
-                //method = this.server_class.getMethod(method_name, classes);
-                //method = this.server.getClass().getMethod(method_name, classes);
                 method = this.c.getMethod(method_name, classes);
             } catch ( NoSuchMethodException e ) {
                 ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream()); 
@@ -435,45 +418,26 @@ class ClientWorker<T> implements Runnable {
   	        method.setAccessible(true);
 	     }
 
-            //in.close();
-            
             Class<?>[] exceptions = method.getExceptionTypes();
             Object return_obj;
-	    //System.out.println(socket.isClosed());
             ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream()); 
             try {
                 return_obj = method.invoke(this.server, args);
                 out.writeObject(-1);
                 out.writeObject(return_obj);
             } catch ( InvocationTargetException e ) {
-                int i=1;
 		Throwable ex = e.getCause();
-                //for ( i = 0; i < exceptions.length; i++ ) {
-                //    if ( exceptions[i] == ex.getClass() ) {
-                //        exceptionNum = i;
-            	//        break;
-            	//    }
-                //}
-		//System.out.println(ex.getClass());
-                out.writeObject(i);
+                out.writeObject(1);
                 out.writeObject(ex);
-            //} catch ( Exception e ) {
-	    //    System.out.println(e.getClass());
 	    }
             out.flush();
-            //out.close();
             socket.close();
         } catch (IOException e ) {
 	    RMIException ex_rmi = new RMIException("Service Error!");
 	    this.skeleton.service_error(ex_rmi);
-	    //System.out.println(e);
-            //throw e.getMessage();
         } catch (ClassNotFoundException e) {
-	    //System.out.println(e);
         } catch (NoSuchMethodException e) {
-	    //System.out.println(e);
         } catch (Exception e) {
-	    //System.out.println(e);
 	}
     }    
 }

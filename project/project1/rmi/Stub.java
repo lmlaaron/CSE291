@@ -13,14 +13,8 @@ import java.net.InetSocketAddress;
 import java.lang.reflect.Proxy;
 
 
-//class MyInvocationHandler implements InvocationHandler {
 class MyInvocationHandler implements InvocationHandler, Serializable {
-//class MyInvocationHandler extends InvocationHandler {
     protected InetSocketAddress address;
-    //private String hostname;
-    //public String getHostName() {
-    //	return this.hostname;
-    //}
     public InetSocketAddress getInetSocketAddress() {
         return this.address;
     }
@@ -28,20 +22,15 @@ class MyInvocationHandler implements InvocationHandler, Serializable {
     public Class<?> getInterface() {
     	return remoteInterface;
     }
-    //public TheInvocationHandler(InetSocketAddress address, Class<?> remoteInterface) {
     public MyInvocationHandler(InetSocketAddress address, Class<?> remoteInterface) {
     	this.address = address;
 	this.remoteInterface = remoteInterface;
     } 
-    //public MyInvocationHandler(String hostname) {
-    //	this.hostname = hostname;
-    //} 
 
     @Override
     public Object invoke(Object proxy, Method m, Object[] args) throws Throwable {
         Object return_obj = null;
 	
-	//System.out.println(args);	
         try{
 		String method_name = m.getName();
 		Class<?>[] classes = m.getParameterTypes();
@@ -57,7 +46,7 @@ class MyInvocationHandler implements InvocationHandler, Serializable {
 		    if ( allmethods[i].getName() == "toString")
                         str = true;
 		}
-		// handle equals separately
+		// handle equals, hashcode, toString separately
 		if ( !eq && m.getName() == "equals" ) {	
 		    if ( args.length != 1 ) {
 		        throw new Error("equal signature mismatch");
@@ -69,9 +58,7 @@ class MyInvocationHandler implements InvocationHandler, Serializable {
 		    } else {
 			try {
 		            MyInvocationHandler mih = this;
-		            //TheInvocationHandler mih = this;
 			    InetSocketAddress maddr = mih.getInetSocketAddress();
-		            //TheInvocationHandler oih = (MyInvocationHandler) Proxy.getInvocationHandler(args[0]);
 			    MyInvocationHandler oih = (MyInvocationHandler) Proxy.getInvocationHandler(args[0]);
 		            InetSocketAddress oaddr = oih.getInetSocketAddress();
 		            return ((mih.getInterface() == oih.getInterface()) && (maddr.equals(oaddr)));
@@ -80,7 +67,6 @@ class MyInvocationHandler implements InvocationHandler, Serializable {
 			}
 		    }
 		} else if ( !hash && m.getName() =="hashCode") {
-		    //TheInvocationHandler mih = this;
 		    MyInvocationHandler mih = this;
 		    InetSocketAddress addr = mih.getInetSocketAddress();
 	            final int prime = 31;
@@ -89,7 +75,6 @@ class MyInvocationHandler implements InvocationHandler, Serializable {
 	            String ret_str = ( addr.toString() + c.toString() );
 	            return ret = ret_str.hashCode();
 		} else if ( !str && m.getName() == "toString") {
-	            //TheInvocationHandler mih = this;
 	  	    MyInvocationHandler mih = this;
 		    InetSocketAddress addr = mih.getInetSocketAddress();
 		    String ret = "Name of RemoteInterface: " + mih.getInterface() + " remote address: " + addr.getHostName() + "; " + addr.getPort(); 
@@ -97,11 +82,7 @@ class MyInvocationHandler implements InvocationHandler, Serializable {
 		}
 		int method_argc = classes.length;
 		int method_exc = exceptions.length; 
-		//Class<?> return_class = m.getReturnType();
-		//Constructor<?> cons = return_class.getConstructor();
-		//return_obj = cons.newInstance();
 		Socket socket = new Socket(address.getHostName(), address.getPort());
-		// Connect Exception 
 		
 		ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
 		out.writeObject(method_name);
@@ -116,14 +97,10 @@ class MyInvocationHandler implements InvocationHandler, Serializable {
 		
 		int exceptionNum = (int) in.readObject(); 
 		if ( exceptionNum == -1 ) {
-		    //return_obj = return_class.cast(in.readObject());
 		    return_obj = in.readObject();
-		//} else if ( exceptionNum == exceptions.length ) {
-		    //throw new Error("Error!");
 		} else if (exceptionNum == -2) {
 		    throw new RMIException("Security Error");
 		} else {
-		    //Exception t = exceptions[exceptionNum].cast(in.readObject());
 		    Throwable t = (Throwable) in.readObject();
 		    throw t;
 		}
@@ -140,14 +117,6 @@ class MyInvocationHandler implements InvocationHandler, Serializable {
         return return_obj;
     }
 }
-
-//class TheInvocationHandler extends MyInvocationHandler implements Serializable {
-//    public TheInvocationHandler(InetSocketAddress address, Class<?> remoteInterface) {
-//    	this.address = address;
-//	this.remoteInterface = remoteInterface;
-//    } 
-//
-//}
 
 
 /** RMI stub factory.
@@ -210,7 +179,6 @@ public abstract class Stub
 	} else {
 	    throw new NullPointerException("c null");
 	}
- 	//throw new UnsupportedOperationException("not implemented");
 	if ( c == null || skeleton == null ) {
 	    throw new NullPointerException("null pointer!");
 	}
@@ -221,15 +189,6 @@ public abstract class Stub
  	    throw new IllegalStateException("IllegalStateException!");
 	}    
 	
-	// currently assume if the server cannot be connected, then it is not started 
-	//try {
-	//    Socket soc = new Socket();
-	//    soc.connect( new InetSocketAddress(skeleton.hostname(), skeleton.port()), TIMEOUT_MILLIS);
-	//    soc.close();
-	//} catch ( IOException e ) {
-	//	throw new IllegalStateException("IllegalStateException!");
-	//}
-		    
 	if ( skeleton.hostname() == "wildcard" && skeleton.port() != 0 ) {
 	    try {
 	        Socket soc = new Socket();
@@ -244,24 +203,14 @@ public abstract class Stub
 	ClassLoader cl = c.getClassLoader();
 	T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
 
-	//Method[] allmethods = c.getDeclaredMethods();
 	Method[] allmethods = c.getMethods();
 	int rmi_ex = 0;
 	int i = 0;
-	//String em ="";
-	//em = em + allmethods.length;
-	//em = em + RMIException.class.getName();
 	for ( i = 0; i < allmethods.length; i++ ) {
 	    Class<?>[] all_ex = allmethods[i].getExceptionTypes();
 	    rmi_ex = 0;
 
-	    //if ( allmethods[i].getName() == "equals" ||  allmethods[i].getName() == "toString" ||  allmethods[i].getName() == "hashCode") {
-	    //	rmi_ex = 1;
-		//continue;
-	    //} 
-	    //em = em + all_ex.length;
 	    for ( int j = 0; j < all_ex.length; j++ ) {
-		//em = em +" " + all_ex[j].getName() + " " ;
 	        if ( all_ex[j] == RMIException.class ) {
 	    	    rmi_ex = 1;
 	    	    break;	
@@ -269,16 +218,10 @@ public abstract class Stub
 	    }
 	    if ( allmethods.length != 0 && rmi_ex == 0 ) {
 	        break;
-		//throw new Error("Error!"+allmethods[i].getName());
 	    }
 	}
 	if ( rmi_ex == 0 ) {
-	    //System.out.println(i);
 	    throw new Error("not remoteInterface");
-	    // throw new Error("Error!" + allmethods.length+" "+allmethods[0].getExceptionTypes().length +" "+allmethods[1].getExceptionTypes().length +" "+allmethods[2].getExceptionTypes().length +" "+allmethods[3].getExceptionTypes().length +" "+allmethods[4].getExceptionTypes().length + " " +RMIException.class.getName());
-	    
-	    //throw new Error("Error!" + em);
-	
 	}
 
 	return stub;
@@ -317,8 +260,6 @@ public abstract class Stub
     public static <T> T create(Class<T> c, Skeleton<T> skeleton,
                                String hostname)
     {
-        //throw new UnsupportedOperationException("not implemented");
-
        	if (c != null ) {
 	    if ( !c.isInterface()) {
 	        throw new Error("not an remote interface!");
@@ -337,21 +278,16 @@ public abstract class Stub
 	ClassLoader cl = c.getClassLoader();
 	T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
 	
-	//Method[] allmethods = c.getDeclaredMethods();
 	Method[] allmethods = c.getMethods();
 	
 	int rmi_ex = 0;
 	for ( int i = 0; i < allmethods.length; i++ ) {
 	    rmi_ex = 0;
-	    //if ( allmethods[i].getName() == "equals" ||  allmethods[i].getName() == "toString" ||  allmethods[i].getName() == "hashCode") {
-	    //	rmi_ex = 1;
-		//continue;
-	    //}
 	    Class<?>[] all_ex = allmethods[i].getExceptionTypes();
 	    for ( int j = 0; j < all_ex.length; j++ ) {
 	        if ( all_ex[j] == RMIException.class ) {
-	    	rmi_ex = 1;
-	    	break;	
+	            rmi_ex = 1;
+	    	    break;	
 	        }
 	    }
 	    if ( rmi_ex == 0 ) {
@@ -359,7 +295,7 @@ public abstract class Stub
 	    }
 	}
 	if ( allmethods.length != 0 && rmi_ex == 0 ) {
-		throw new Error("Error!");
+	    throw new Error("Error!");
 	}
 
 	return stub;
@@ -391,7 +327,7 @@ public abstract class Stub
 	}
     
 	if ( c == null || address == null ) {
-		throw new NullPointerException("null pointer!");
+	    throw new NullPointerException("null pointer!");
 	}
 
 
@@ -399,19 +335,12 @@ public abstract class Stub
 	ClassLoader cl = c.getClassLoader();
 	try {
 	    T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
-	    //Method[] allmethods = stub.getClass().getDeclaredMethods();
-	    //Method[] allmethods = c.getDeclaredMethods();
 	    Method[] allmethods = c.getMethods();
 
 	    int rmi_ex = 0;
 	    for ( int i = 0; i < allmethods.length; i++ ) {
 	    	Class<?>[] all_ex = allmethods[i].getExceptionTypes();
 	        rmi_ex = 0;
-	        
-		//if ( allmethods[i].getName() == "equals" ||  allmethods[i].getName() == "toString" || allmethods[i].getName() == "hashCode") {
-	    	//    rmi_ex = 1;
-		//    continue;
-	        //}
 		
 		for ( int j = 0; j < all_ex.length; j++ ) {
 	            if ( all_ex[j] == RMIException.class ) {
@@ -434,35 +363,4 @@ public abstract class Stub
     	    
 	}
     }
-   
-
-    // the bottom code is misplaced, should be in the involcationhandler
-    /*
-    public boolean equals(Object other) {
-	MyInvocationHandler mih = (MyInvocationHandler) Proxy.getInvocationHandler(this);
-	InetSocketAddress maddr = mih.getInetSocketAddress();
-	MyInvocationHandler oih = (MyInvocationHandler) Proxy.getInvocationHandler(other);
-	InetSocketAddress oaddr = oih.getInetSocketAddress();
-
-	return ((mih.getInterface() == oih.getInterface()) && maddr == oaddr );
-    }
-    
-    public int hashCode() {
-	final int prime = 31;
-	int ret = 0;
-	MyInvocationHandler mih = (MyInvocationHandler) Proxy.getInvocationHandler(this);
-	InetSocketAddress addr = mih.getInetSocketAddress();
-	Class<?> c = mih.getInterface();
-	String ret_str = ( addr.toString() + c.toString() );
-	return ret = ret_str.hashCode();
-    }
-
-    public String toString() {
-	MyInvocationHandler mih = (MyInvocationHandler) Proxy.getInvocationHandler(this);
-	InetSocketAddress addr = mih.getInetSocketAddress();
-
-	String ret = "Name of RemoteInterface: " + mih.getInterface() + " remote address: " + addr.getHostName() + "; " + addr.getPort(); 
-	return ret;
-    }
-    */
 }
