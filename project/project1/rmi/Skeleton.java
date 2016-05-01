@@ -299,7 +299,7 @@ public class Skeleton<T>
 	this.isStopped = false;	
 	try {
   	    this.serverSocket = new ServerSocket(this.port);
-	    this.listener = new Listener(this, this.serverSocket);
+	    this.listener = new Listener(this, this.serverSocket, this.c);
             this.listen_thread = new Thread(this.listener);
 	    this.listen_thread.start();
 	    return;        
@@ -338,10 +338,12 @@ public class Skeleton<T>
 class Listener<T> implements Runnable {
     private Skeleton<T> skeleton;
     private ServerSocket serverSocket;
+    private Class<?> c;
 	    
-    Listener(Skeleton<T> skeleton, ServerSocket serverSocket) {
+    Listener(Skeleton<T> skeleton, ServerSocket serverSocket, Class<?> c) {
     	this.skeleton = skeleton;
 	this.serverSocket = serverSocket;
+	this.c = c;
     }
 
     public void run() {
@@ -351,7 +353,7 @@ class Listener<T> implements Runnable {
  	        if ( ! this.skeleton.isStopped() ) {
 		    //socket = this.skeleton.serverSocket.accept();
  	    	    Socket socket = this.serverSocket.accept();
-		    new Thread( new ClientWorker(socket, this.skeleton.server(), this.skeleton )).start();
+		    new Thread( new ClientWorker(socket, this.skeleton.server(), this.skeleton, this.c)).start();
 		    //new Thread( new ClientWorker(socket, this.skeleton.server().getClass() ) ).start();
 	    	} else {
 		    return;
@@ -383,13 +385,15 @@ class ClientWorker<T> implements Runnable {
     private T server;
     //final int MAX_ARGC = 200;
     private Skeleton<T> skeleton; 
+    private Class<?> c;
     
     //ClientWorker(Socket socket, Class<?> server_class) {
-    ClientWorker(Socket socket, T server, Skeleton<T> skeleton) {
-      this.socket = socket;
-      //this.server_class = server_class;
-      this.server = server;
-      this.skeleton = skeleton;
+    ClientWorker(Socket socket, T server, Skeleton<T> skeleton, Class<?> c) {
+        this.socket = socket;
+        //this.server_class = server_class;
+        this.server = server;
+        this.skeleton = skeleton;
+        this.c = c;
     }
 
     public void run() {
@@ -418,8 +422,13 @@ class ClientWorker<T> implements Runnable {
             int exceptionNum = -1;
             try {
                 //method = this.server_class.getMethod(method_name, classes);
-                method = this.server.getClass().getMethod(method_name, classes);
+                //method = this.server.getClass().getMethod(method_name, classes);
+                method = this.c.getMethod(method_name, classes);
             } catch ( NoSuchMethodException e ) {
+                ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream()); 
+                out.writeObject(-2);
+                out.flush();
+                socket.close();
         	throw e;
 	    }
 	    if(!method.isAccessible()) {

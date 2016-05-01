@@ -120,6 +120,8 @@ class MyInvocationHandler implements InvocationHandler, Serializable {
 		    return_obj = in.readObject();
 		//} else if ( exceptionNum == exceptions.length ) {
 		    //throw new Error("Error!");
+		} else if (exceptionNum == -2) {
+		    throw new RMIException("Security Error");
 		} else {
 		    //Exception t = exceptions[exceptionNum].cast(in.readObject());
 		    Throwable t = (Throwable) in.readObject();
