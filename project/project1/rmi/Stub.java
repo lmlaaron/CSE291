@@ -36,18 +36,23 @@ class MyInvocationHandler implements InvocationHandler, Serializable {
 		Class<?>[] classes = m.getParameterTypes();
 		Class<?>[] exceptions = m.getExceptionTypes();
 		Method[] allmethods = this.remoteInterface.getDeclaredMethods();
-		boolean eq = false, str = false, hash = false;
-	        // whether eq, str, hash are overriden
+		boolean eq_ow = false, str_ow = false, hash_ow = false;
+
 		for (int i = 0; i < allmethods.length; i++) {
-	    	    if ( allmethods[i].getName() == "equals")
-		        eq = true;
-    		    if ( allmethods[i].getName() == "hashCode")
-                        hash = true;
-		    if ( allmethods[i].getName() == "toString")
-                        str = true;
+	    	    if ( allmethods[i].getName() == "equals" && allmethods[i].getParameterCount() == 1 && allmethods[i].getParameterTypes()[0].getName() == "java.lang.Object") { 
+		        eq_ow = true;
+		    }
+    		    if ( allmethods[i].getName() == "hashCode" && allmethods[i].getParameterCount() == 0)
+                        hash_ow = true;
+		    if ( allmethods[i].getName() == "toString" && allmethods[i].getParameterCount() == 0)
+                        str_ow = true;
 		}
 		// handle equals, hashcode, toString separately
-		if ( !eq && m.getName() == "equals" ) {	
+		
+		// the method described in the handout would be used if
+		// and only if the method is not overridden and it is 
+		// called with the same signature
+		if ( method_name == "equals" && !eq_ow && m.getParameterCount() == 1 && m.getParameterTypes()[0].getName() == "java.lang.Object" ) {	
 		    if ( args.length != 1 ) {
 		        throw new Error("equal signature mismatch");
 		    }
@@ -66,7 +71,7 @@ class MyInvocationHandler implements InvocationHandler, Serializable {
 			    return false;
 			}
 		    }
-		} else if ( !hash && m.getName() =="hashCode") {
+		} else if ( method_name == "hashCode" && !hash_ow && m.getParameterCount() == 0) {
 		    MyInvocationHandler mih = this;
 		    InetSocketAddress addr = mih.getInetSocketAddress();
 	            final int prime = 31;
@@ -74,7 +79,7 @@ class MyInvocationHandler implements InvocationHandler, Serializable {
 	            Class<?> c = mih.getInterface();
 	            String ret_str = ( addr.toString() + c.toString() );
 	            return ret = ret_str.hashCode();
-		} else if ( !str && m.getName() == "toString") {
+		} else if (method_name == "toString" &&  !str_ow && m.getParameterCount() == 0) {
 	  	    MyInvocationHandler mih = this;
 		    InetSocketAddress addr = mih.getInetSocketAddress();
 		    String ret = "Name of RemoteInterface: " + mih.getInterface() + " remote address: " + addr.getHostName() + "; " + addr.getPort(); 
