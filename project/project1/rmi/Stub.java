@@ -12,8 +12,11 @@ import java.net.InetSocketAddress;
 //import java.lang.reflect.Proxy.ProxyFactory.newProxyInstance; 
 import java.lang.reflect.Proxy;
 
-class MyInvocationHandler  implements InvocationHandler{
-    private InetSocketAddress address;
+
+//class MyInvocationHandler implements InvocationHandler {
+class MyInvocationHandler implements InvocationHandler, Serializable {
+//class MyInvocationHandler extends InvocationHandler {
+    protected InetSocketAddress address;
     //private String hostname;
     //public String getHostName() {
     //	return this.hostname;
@@ -21,10 +24,11 @@ class MyInvocationHandler  implements InvocationHandler{
     public InetSocketAddress getInetSocketAddress() {
         return this.address;
     }
-    private Class<?> remoteInterface;
+    protected Class<?> remoteInterface;
     public Class<?> getInterface() {
     	return remoteInterface;
     }
+    //public TheInvocationHandler(InetSocketAddress address, Class<?> remoteInterface) {
     public MyInvocationHandler(InetSocketAddress address, Class<?> remoteInterface) {
     	this.address = address;
 	this.remoteInterface = remoteInterface;
@@ -54,8 +58,10 @@ class MyInvocationHandler  implements InvocationHandler{
 		    } else {
 			try {
 		            MyInvocationHandler mih = this;
-		            InetSocketAddress maddr = mih.getInetSocketAddress();
-		            MyInvocationHandler oih = (MyInvocationHandler) Proxy.getInvocationHandler(args[0]);
+		            //TheInvocationHandler mih = this;
+			    InetSocketAddress maddr = mih.getInetSocketAddress();
+		            //TheInvocationHandler oih = (MyInvocationHandler) Proxy.getInvocationHandler(args[0]);
+			    MyInvocationHandler oih = (MyInvocationHandler) Proxy.getInvocationHandler(args[0]);
 		            InetSocketAddress oaddr = oih.getInetSocketAddress();
 		            return ((mih.getInterface() == oih.getInterface()) && (maddr.equals(oaddr)));
 			} catch ( Throwable t ) {
@@ -63,6 +69,7 @@ class MyInvocationHandler  implements InvocationHandler{
 			}
 		    }
 		} else if ( m.getName() =="hashCode") {
+		    //TheInvocationHandler mih = this;
 		    MyInvocationHandler mih = this;
 		    InetSocketAddress addr = mih.getInetSocketAddress();
 	            final int prime = 31;
@@ -71,7 +78,8 @@ class MyInvocationHandler  implements InvocationHandler{
 	            String ret_str = ( addr.toString() + c.toString() );
 	            return ret = ret_str.hashCode();
 		} else if ( m.getName() == "toString") {
-	            MyInvocationHandler mih = this;
+	            //TheInvocationHandler mih = this;
+	  	    MyInvocationHandler mih = this;
 		    InetSocketAddress addr = mih.getInetSocketAddress();
 		    String ret = "Name of RemoteInterface: " + mih.getInterface() + " remote address: " + addr.getHostName() + "; " + addr.getPort(); 
 	            return ret;
@@ -119,6 +127,14 @@ class MyInvocationHandler  implements InvocationHandler{
         return return_obj;
     }
 }
+
+//class TheInvocationHandler extends MyInvocationHandler implements Serializable {
+//    public TheInvocationHandler(InetSocketAddress address, Class<?> remoteInterface) {
+//    	this.address = address;
+//	this.remoteInterface = remoteInterface;
+//    } 
+//
+//}
 
 
 /** RMI stub factory.
