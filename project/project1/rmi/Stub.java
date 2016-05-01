@@ -40,14 +40,25 @@ class MyInvocationHandler implements InvocationHandler, Serializable {
     @Override
     public Object invoke(Object proxy, Method m, Object[] args) throws Throwable {
         Object return_obj = null;
+	
+	//System.out.println(args);	
         try{
 		String method_name = m.getName();
 		Class<?>[] classes = m.getParameterTypes();
 		Class<?>[] exceptions = m.getExceptionTypes();
-
+		Method[] allmethods = this.remoteInterface.getDeclaredMethods();
+		boolean eq = false, str = false, hash = false;
+	        // whether eq, str, hash are overriden
+		for (int i = 0; i < allmethods.length; i++) {
+	    	    if ( allmethods[i].getName() == "equals")
+		        eq = true;
+    		    if ( allmethods[i].getName() == "hashCode")
+                        hash = true;
+		    if ( allmethods[i].getName() == "toString")
+                        str = true;
+		}
 		// handle equals separately
-		
-		if ( m.getName() == "equals" ) {
+		if ( !eq && m.getName() == "equals" ) {	
 		    if ( args.length != 1 ) {
 		        throw new Error("equal signature mismatch");
 		    }
@@ -68,7 +79,7 @@ class MyInvocationHandler implements InvocationHandler, Serializable {
 			    return false;
 			}
 		    }
-		} else if ( m.getName() =="hashCode") {
+		} else if ( !hash && m.getName() =="hashCode") {
 		    //TheInvocationHandler mih = this;
 		    MyInvocationHandler mih = this;
 		    InetSocketAddress addr = mih.getInetSocketAddress();
@@ -77,7 +88,7 @@ class MyInvocationHandler implements InvocationHandler, Serializable {
 	            Class<?> c = mih.getInterface();
 	            String ret_str = ( addr.toString() + c.toString() );
 	            return ret = ret_str.hashCode();
-		} else if ( m.getName() == "toString") {
+		} else if ( !str && m.getName() == "toString") {
 	            //TheInvocationHandler mih = this;
 	  	    MyInvocationHandler mih = this;
 		    InetSocketAddress addr = mih.getInetSocketAddress();
@@ -231,7 +242,8 @@ public abstract class Stub
 	ClassLoader cl = c.getClassLoader();
 	T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
 
-	Method[] allmethods = c.getDeclaredMethods();
+	//Method[] allmethods = c.getDeclaredMethods();
+	Method[] allmethods = c.getMethods();
 	int rmi_ex = 0;
 	int i = 0;
 	//String em ="";
@@ -241,10 +253,10 @@ public abstract class Stub
 	    Class<?>[] all_ex = allmethods[i].getExceptionTypes();
 	    rmi_ex = 0;
 
-	    if ( allmethods[i].getName() == "equals" ||  allmethods[i].getName() == "toString" ||  allmethods[i].getName() == "hashCode") {
-	    	rmi_ex = 1;
-		continue;
-	    } 
+	    //if ( allmethods[i].getName() == "equals" ||  allmethods[i].getName() == "toString" ||  allmethods[i].getName() == "hashCode") {
+	    //	rmi_ex = 1;
+		//continue;
+	    //} 
 	    //em = em + all_ex.length;
 	    for ( int j = 0; j < all_ex.length; j++ ) {
 		//em = em +" " + all_ex[j].getName() + " " ;
@@ -253,7 +265,7 @@ public abstract class Stub
 	    	    break;	
 	        }
 	    }
-	    if ( rmi_ex == 0 ) {
+	    if ( allmethods.length != 0 && rmi_ex == 0 ) {
 	        break;
 		//throw new Error("Error!"+allmethods[i].getName());
 	    }
@@ -323,15 +335,16 @@ public abstract class Stub
 	ClassLoader cl = c.getClassLoader();
 	T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
 	
-	Method[] allmethods = c.getDeclaredMethods();
+	//Method[] allmethods = c.getDeclaredMethods();
+	Method[] allmethods = c.getMethods();
 	
 	int rmi_ex = 0;
 	for ( int i = 0; i < allmethods.length; i++ ) {
 	    rmi_ex = 0;
-	    if ( allmethods[i].getName() == "equals" ||  allmethods[i].getName() == "toString" ||  allmethods[i].getName() == "hashCode") {
-	    	rmi_ex = 1;
-		continue;
-	    }
+	    //if ( allmethods[i].getName() == "equals" ||  allmethods[i].getName() == "toString" ||  allmethods[i].getName() == "hashCode") {
+	    //	rmi_ex = 1;
+		//continue;
+	    //}
 	    Class<?>[] all_ex = allmethods[i].getExceptionTypes();
 	    for ( int j = 0; j < all_ex.length; j++ ) {
 	        if ( all_ex[j] == RMIException.class ) {
@@ -343,7 +356,7 @@ public abstract class Stub
 	        break;
 	    }
 	}
-	if ( rmi_ex == 0 ) {
+	if ( allmethods.length != 0 && rmi_ex == 0 ) {
 		throw new Error("Error!");
 	}
 
@@ -369,7 +382,6 @@ public abstract class Stub
      */
     public static <T> T create(Class<T> c, InetSocketAddress address)
     {
-
 	if (c != null ) {
 	    if ( !c.isInterface()) {
 	        throw new Error("not an remote interface!");
@@ -386,17 +398,18 @@ public abstract class Stub
 	try {
 	    T stub = (T) Proxy.newProxyInstance( cl, new java.lang.Class[] { c }, h);
 	    //Method[] allmethods = stub.getClass().getDeclaredMethods();
-	    Method[] allmethods = c.getDeclaredMethods();
+	    //Method[] allmethods = c.getDeclaredMethods();
+	    Method[] allmethods = c.getMethods();
 
 	    int rmi_ex = 0;
 	    for ( int i = 0; i < allmethods.length; i++ ) {
 	    	Class<?>[] all_ex = allmethods[i].getExceptionTypes();
 	        rmi_ex = 0;
 	        
-		if ( allmethods[i].getName() == "equals" ||  allmethods[i].getName() == "toString" || allmethods[i].getName() == "hashCode") {
-	    	    rmi_ex = 1;
-		    continue;
-	        }
+		//if ( allmethods[i].getName() == "equals" ||  allmethods[i].getName() == "toString" || allmethods[i].getName() == "hashCode") {
+	    	//    rmi_ex = 1;
+		//    continue;
+	        //}
 		
 		for ( int j = 0; j < all_ex.length; j++ ) {
 	            if ( all_ex[j] == RMIException.class ) {
@@ -408,7 +421,7 @@ public abstract class Stub
 	            break;
 	        }
 	    }
-	    if ( rmi_ex == 0 ) {
+	    if ( allmethods.length != 0 && rmi_ex == 0 ) {
 	    	throw new Error("Error!");
 	    }
 	    return stub;

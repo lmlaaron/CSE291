@@ -92,9 +92,10 @@ public class Skeleton<T>
 	Method[] allmethods = c.getDeclaredMethods();
 	int rmi_ex = 0;
 	for ( int i = 0; i < allmethods.length; i++ ) {
-	    if ( allmethods[i].getName() == "equals" ||  allmethods[i].getName() == "toString" || allmethods[i].getName() == "hashCode") {
-	    	continue;
-	    }
+	    //if ( allmethods[i].getName() == "equals" ||  allmethods[i].getName() == "toString" || allmethods[i].getName() == "hashCode") {
+	    //	rmi_ex = 1;
+	    //	continue;
+	    //}
 		Class<?>[] all_ex = allmethods[i].getExceptionTypes();
 	    rmi_ex = 0;
 	    for ( int j = 0; j < all_ex.length; j++ ) {
@@ -151,11 +152,12 @@ public class Skeleton<T>
         //throw new UnsupportedOperationException("not implemented");
 	Method[] allmethods = c.getDeclaredMethods();
 	int rmi_ex = 0;
+	//System.out.println("HAHAHA");
 	for ( int i = 0; i < allmethods.length; i++ ) {
-	    if ( allmethods[i].getName() == "equals" ||  allmethods[i].getName() == "toString" || allmethods[i].getName() == "hashCode") {
-	    	rmi_ex = 1;
-		continue;
-	    }
+	    //if ( allmethods[i].getName() == "equals" ||  allmethods[i].getName() == "toString" || allmethods[i].getName() == "hashCode") {
+	    //	rmi_ex = 1;
+	    //    continue;
+	    //}
 	    Class<?>[] all_ex = allmethods[i].getExceptionTypes();
 	    rmi_ex = 0;
 	    for ( int j = 0; j < all_ex.length; j++ ) {
@@ -168,7 +170,7 @@ public class Skeleton<T>
 	        break;
 	    }
 	}
-	if ( rmi_ex == 0 ) {
+	if ( allmethods.length != 0 && rmi_ex == 0 ) {
 		throw new Error("Error!");
 	}
 	    
