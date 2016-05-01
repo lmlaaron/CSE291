@@ -174,9 +174,19 @@ public abstract class Stub
     {
 	final int TIMEOUT_MILLIS = 10000;
 	
+	if (c != null ) {
+	    if ( !c.isInterface()) {
+	        throw new Error("not an remote interface!");
+	    }
+	} else {
+	    throw new NullPointerException("c null");
+	}
  	//throw new UnsupportedOperationException("not implemented");
 	if ( c == null || skeleton == null ) {
 	    throw new NullPointerException("null pointer!");
+	}
+	if ( !c.isInterface()) {
+	    throw new Error("not an remote interface!");
 	}
 	if ( skeleton.hostname() == "wildcard" || skeleton.port() == 0 ) {
  	    throw new IllegalStateException("IllegalStateException!");
@@ -191,13 +201,13 @@ public abstract class Stub
 	//	throw new IllegalStateException("IllegalStateException!");
 	//}
 		    
-	if ( skeleton.hostname() == null && skeleton.port() != 0 ) {
+	if ( skeleton.hostname() == "wildcard" && skeleton.port() != 0 ) {
 	    try {
 	        Socket soc = new Socket();
-		soc.connect( new InetSocketAddress("localhost", skeleton.port()), TIMEOUT_MILLIS);
-   		soc.close();
+	        soc.connect( new InetSocketAddress("localhost", skeleton.port()), TIMEOUT_MILLIS);
+   	        soc.close();
 	    } catch ( IOException e ) {
-		throw new UnknownHostException("UnknownHostException!");
+	        throw new UnknownHostException("UnknownHostException!");
 	    }
    	}
 
@@ -234,7 +244,7 @@ public abstract class Stub
 	}
 	if ( rmi_ex == 0 ) {
 	    //System.out.println(i);
-	    throw new Error("Error!" + allmethods.length+" "+allmethods[1].getParameterTypes().length +" "+allmethods[1].getName() +" "+allmethods[2].getName() +" "+allmethods[3].getName() +" "+allmethods[4].getName() + " " +RMIException.class.getName());
+	    throw new Error("not remoteInterface");
 	    // throw new Error("Error!" + allmethods.length+" "+allmethods[0].getExceptionTypes().length +" "+allmethods[1].getExceptionTypes().length +" "+allmethods[2].getExceptionTypes().length +" "+allmethods[3].getExceptionTypes().length +" "+allmethods[4].getExceptionTypes().length + " " +RMIException.class.getName());
 	    
 	    //throw new Error("Error!" + em);
@@ -278,10 +288,17 @@ public abstract class Stub
                                String hostname)
     {
         //throw new UnsupportedOperationException("not implemented");
-	
+
+       	if (c != null ) {
+	    if ( !c.isInterface()) {
+	        throw new Error("not an remote interface!");
+	    }
+	}
+
 	if ( c == null || skeleton == null || hostname == null ) {
 	    throw new NullPointerException("null pointer!");
 	}
+	
 	if ( skeleton.port() == 0 ) {
  	    throw new IllegalStateException("IllegalStateException!");
 	}
@@ -336,10 +353,18 @@ public abstract class Stub
      */
     public static <T> T create(Class<T> c, InetSocketAddress address)
     {
+
+	if (c != null ) {
+	    if ( !c.isInterface()) {
+	        throw new Error("not an remote interface!");
+	    }
+	}
+    
 	if ( c == null || address == null ) {
 		throw new NullPointerException("null pointer!");
 	}
-	
+
+
 	MyInvocationHandler h = new MyInvocationHandler(address, c);
 	ClassLoader cl = c.getClassLoader();
 	try {

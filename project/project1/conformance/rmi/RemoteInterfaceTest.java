@@ -183,7 +183,7 @@ public class RemoteInterfaceTest extends Test
         catch(TestFailed e) { throw e; }
         catch(Throwable t)
         {
-            throw new TestFailed("stub factory method threw an unexpected " +
+            throw new TestFailed("1stub factory method threw an unexpected " +
                                  "exception when given a non-remote interface",
                                  t);
         }
@@ -198,7 +198,8 @@ public class RemoteInterfaceTest extends Test
         catch(TestFailed e) { throw e; }
         catch(Throwable t)
         {
-            throw new TestFailed("stub factory method threw an unexpected " +
+            	System.out.println(t);
+		throw new TestFailed("2stub factory method threw an unexpected " +
                                  "exception when given a non-remote interface",
                                  t);
         }

@@ -80,7 +80,15 @@ public class Skeleton<T>
      */
     public Skeleton(Class<T> c, T server)
     {
-        //throw new UnsupportedOperationException("not implemented");	
+       	if (c!= null) {
+	    if (!c.isInterface()) {
+	     	throw new Error("not interface type!");
+	    }
+    	} else {
+	   throw new NullPointerException("null");	
+	}
+
+	    //throw new UnsupportedOperationException("not implemented");	
 	Method[] allmethods = c.getDeclaredMethods();
 	int rmi_ex = 0;
 	for ( int i = 0; i < allmethods.length; i++ ) {
@@ -133,6 +141,13 @@ public class Skeleton<T>
      */
     public Skeleton(Class<T> c, T server, InetSocketAddress address)
     {
+	if ( c!= null ) {	
+	    if (!c.isInterface() ) {
+	     	throw new Error("not interface type!");
+	    }    
+	} else {
+	    throw new NullPointerException("null");
+	}
         //throw new UnsupportedOperationException("not implemented");
 	Method[] allmethods = c.getDeclaredMethods();
 	int rmi_ex = 0;
@@ -160,7 +175,10 @@ public class Skeleton<T>
 	if ( c == null || server == null ) {
 		throw new NullPointerException("NullPointerException");
 	}
-	    
+	
+	if (!c.isInterface() ) {
+	 	throw new Error("not interface type!");
+	}    
 	this.c = c;
 	this.server = server;
 	this.isStopped = true;
