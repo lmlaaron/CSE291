@@ -208,7 +208,7 @@ public class Skeleton<T>
      */
     protected void stopped(Throwable cause)
     {
-        this.isStopped = true;	    
+        //this.isStopped = true;	    
     }
 
     /** Called when an exception occurs at the top level in the listening
@@ -326,6 +326,7 @@ public class Skeleton<T>
             } catch ( Exception e ) {
             }
 	}
+	this.isStopped = true;
 	this.stopped(null);
 	return;
         //throw new UnsupportedOperationException("not implemented");
