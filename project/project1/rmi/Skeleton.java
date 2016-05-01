@@ -349,7 +349,7 @@ class Listener<T> implements Runnable {
  	        if ( ! this.skeleton.isStopped() ) {
 		    //socket = this.skeleton.serverSocket.accept();
  	    	    Socket socket = this.serverSocket.accept();
-		    new Thread( new ClientWorker(socket, this.skeleton.server() )).start();
+		    new Thread( new ClientWorker(socket, this.skeleton.server(), this.skeleton )).start();
 		    //new Thread( new ClientWorker(socket, this.skeleton.server().getClass() ) ).start();
 	    	} else {
 		    return;
@@ -380,12 +380,14 @@ class ClientWorker<T> implements Runnable {
     //private Class<?> server_class;
     private T server;
     //final int MAX_ARGC = 200;
+    private Skeleton<T> skeleton; 
     
     //ClientWorker(Socket socket, Class<?> server_class) {
-    ClientWorker(Socket socket, T server) {
+    ClientWorker(Socket socket, T server, Skeleton<T> skeleton) {
       this.socket = socket;
       //this.server_class = server_class;
       this.server = server;
+      this.skeleton = skeleton;
     }
 
     public void run() {
@@ -451,6 +453,8 @@ class ClientWorker<T> implements Runnable {
             //out.close();
             socket.close();
         } catch (IOException e ) {
+	    RMIException ex_rmi = new RMIException("Service Error!");
+	    this.skeleton.service_error(ex_rmi);
 	    //System.out.println(e);
             //throw e.getMessage();
         } catch (ClassNotFoundException e) {
