@@ -9,6 +9,38 @@ import common.*;
 import storage.*;
 import java.util.ArrayList;
 
+import javax.swing.tree.*;
+import javax.swing.*;
+import javax.swing.event;
+import java.io.File;
+ 
+/**
+ * This application that requires the following additional files:
+ *   TreeDemoHelp.html
+ *    arnold.html
+ *    bloch.html
+ *    chan.html
+ *    jls.html
+ *    swingtutorial.html
+ *    tutorial.html
+ *    tutorialcont.html
+ *    vm.html
+ */
+import javax.swing.JEditorPane;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
+import javax.swing.UIManager;
+ 
+import javax.swing.JTree;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.TreeSelectionModel;
+import javax.swing.event.TreeSelectionEvent;
+import javax.swing.event.TreeSelectionListener;
+
+
+
 /** Naming server.
 
     <p>
@@ -33,18 +65,43 @@ import java.util.ArrayList;
     <code>NamingStubs</code>.
  */
 
+
+
+
 class StorageMachine {
-  public Command command_stub;
-  public Storage client_stub;
-  StorageMachine(Command command_stub_, Storage client_stub_) {
-    this.command_stub = command_stub_;
-    this.client_stub = client_stub_;
-  }
+    public Command command_stub;
+    public Storage client_stub;
+
+    StorageMachine(Command command_stub_, Storage client_stub_) {
+      this.command_stub = command_stub_;
+      this.client_stub = client_stub_;
+    }
+}
+
+class PathMachinePair {
+    public Path path; 
+    public StorageMachine machine;	
+
+    PathMachinePair(Path path_, StorageMachine machine_) {
+	this.path = path_;
+	this.machine = machine_;
+    }
 }
 
 public class NamingServer implements Service, Registration
 {
-    ArrayList<StorageMachine> storage_machines; 
+    // register all the storage server
+   private ArrayList<StorageMachine> storage_machines; 
+
+   // a tree structure to remember all the <file, storageMachine>
+   // the structure of the tree resembles the file system tree (at least at the top level)
+   //private TreeNode<PathMachinePair> root;
+   private JTree tree;
+   private DefaultMutableTreeNode root;
+   //private DefaultMutableTreeNode<PathMachinePair> root;
+   
+   
+
     /** Creates the naming server object.
 
         <p>
@@ -54,6 +111,38 @@ public class NamingServer implements Service, Registration
     {
   	//throw new UnsupportedOperationException("not implemented");
         storage_machines = new ArrayList<StorageMachine>();
+
+	//TODO(lmlaaron): replace null with "/" in path object
+	root = new DefaultMutableTreeNode(new PathMachinePair(Path("/"),null))
+	tree = new Jtree(root);
+	// top.add(new DefaultMutableTreeNode)
+	//root = new TreeNode<PathMachinePair>();
+    }
+
+    // need to write a function given a Path, return the <file, storageMachine> node on the tree
+    private DefaultMutableTreeNode get(Path file) {
+        Iterator itr = file.iterator();
+        String cpath = "";
+        //DefaultMutableTreeNode<PathMachinePair> ctr = this.root;
+        DefaultMutableTreeNode ctr = this.root;
+        
+        // traverse the tree from root to the node representing the file, return the respective machine stub
+        while (itr.hasNext()) {
+            cpath = current_path + itr.next();	    
+            for ( int i = 0; i < ctr.getChildCount(); i++ ) {
+            	if (ctr.getChildAt(i).path == Path(cpath)) {
+        	    break;
+        	}
+            }
+            if ( i == ctr.getChildCount() ) {
+            	//throw filenotfoundexception
+                return null;
+            } else {
+            	ctr = ctr.getChildAt(i);
+            }
+        }
+        return ctr;
+        //throw new UnsupportedOperationException("not implemented");
     }
 
     /** Starts the naming server.
@@ -123,8 +212,9 @@ public class NamingServer implements Service, Registration
     @Override
     public String[] list(Path directory) throws FileNotFoundException
     {
-	// use the list function in the Path class
-	directory.list()    
+	// check if directory is valid, if not return FileNotFoundException
+	 
+
         //throw new UnsupportedOperationException("not implemented");
     }
 
@@ -132,25 +222,33 @@ public class NamingServer implements Service, Registration
     public boolean createFile(Path file)
         throws RMIException, FileNotFoundException
     {
+	// traverse the tree from root to the node representing the file, get the respective storage stub, use this stub to create the file on that storage server, close the stub,and return, add the node onto the tree
+
         throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
     public boolean createDirectory(Path directory) throws FileNotFoundException
     {
+        // traverse the tree from root to the node representing the file, get the respective storage stub, use this stub to create the file on that storage server, close the stub, adding the node to the tree
         throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
     public boolean delete(Path path) throws FileNotFoundException
     {
+	//PathMachinePair pmp = (PathMachinePair) this.get(path).getUserObject;
+
+	// traverse the tree from the root to the node representing the file, get the respective storage machine id, asking the naming server to delete that file on behalf of the client, and remove the node on the tree
         throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
     public Storage getStorage(Path file) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+	PathMachinePair pmp = (PathMachinePair) this.get(file).getUserObject;
+	return pmp.machine.client_stub;
+        //throw new UnsupportedOperationException("not implemented");
     }
 
     // The method register is documented in Registration.java.
