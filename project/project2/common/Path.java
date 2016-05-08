@@ -133,14 +133,14 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
         throw new UnsupportedOperationException("not implemented");
     }
 
-    /** Determines if the given path is a directory.
+    ///** Determines if the given path is a directory.
 
-        @return <code>true</code> If and only if the path is a directory.
-     */
-    public boolean isDirectory()
-    {
-        throw new UnsupportedOperationException("not implemented");
-    }
+    //    @return <code>true</code> If and only if the path is a directory.
+    // */
+    //public boolean isDirectory()
+    //{
+    //    throw new UnsupportedOperationException("not implemented");
+    //}
 
 
     /** Converts the path to <code>File</code> object.

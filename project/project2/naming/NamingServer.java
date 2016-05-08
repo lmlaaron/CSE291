@@ -35,7 +35,11 @@ import java.util.ArrayList;
 
 class StorageMachine {
   public Command command_stub;
-  public Storage storage_server;
+  public Storage client_stub;
+  StorageMachine(Command command_stub_, Storage client_stub_) {
+    this.command_stub = command_stub_;
+    this.client_stub = client_stub_;
+  }
 }
 
 public class NamingServer implements Service, Registration
@@ -48,7 +52,8 @@ public class NamingServer implements Service, Registration
      */
     public NamingServer()
     {
-        //throw new UnsupportedOperationException("not implemented");
+  	//throw new UnsupportedOperationException("not implemented");
+        storage_machines = new ArrayList<StorageMachine>();
     }
 
     /** Starts the naming server.
@@ -118,7 +123,9 @@ public class NamingServer implements Service, Registration
     @Override
     public String[] list(Path directory) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+	// use the list function in the Path class
+	directory.list()    
+        //throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
@@ -151,7 +158,13 @@ public class NamingServer implements Service, Registration
     public Path[] register(Storage client_stub, Command command_stub,
                            Path[] files)
     {
-        this.storage_machines.add(())
+        this.storage_machines.add(StorageMachine(client_stub,command_stub))
+	
+	//TODO(lmlaaron):
+	//1. scan all the files on this storage machine
+	//2. compare the files to be deleted
+	//3. register the files on the naming server to be added
+	//4. return the file list to be deleted
 	//throw new UnsupportedOperationException("not implemented");
     }
 }
