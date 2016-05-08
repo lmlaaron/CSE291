@@ -135,10 +135,9 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
 
     /** Determines if the given path is a directory.
 
-        @param path The path to be tested.
         @return <code>true</code> If and only if the path is a directory.
      */
-    public boolean isDirectory(Path path) throws FileNotFoundException
+    public boolean isDirectory()
     {
         throw new UnsupportedOperationException("not implemented");
     }
