@@ -7,6 +7,7 @@ import java.util.*;
 import rmi.*;
 import common.*;
 import storage.*;
+import java.util.ArrayList;
 
 /** Naming server.
 
@@ -31,8 +32,15 @@ import storage.*;
     registration interfaces are available at well-known ports defined in
     <code>NamingStubs</code>.
  */
+
+class StorageMachine {
+  public Command command_stub;
+  public Storage storage_server;
+}
+
 public class NamingServer implements Service, Registration
 {
+    ArrayList<StorageMachine> storage_machines; 
     /** Creates the naming server object.
 
         <p>
@@ -143,6 +151,7 @@ public class NamingServer implements Service, Registration
     public Path[] register(Storage client_stub, Command command_stub,
                            Path[] files)
     {
-        throw new UnsupportedOperationException("not implemented");
+        this.storage_machines.add(())
+	//throw new UnsupportedOperationException("not implemented");
     }
 }
