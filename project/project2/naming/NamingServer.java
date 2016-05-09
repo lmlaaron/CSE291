@@ -69,6 +69,9 @@ enum FileType {
     FILE, DIRECTORY
 }
 
+enum LockType {
+    EXCLUSIVE, SHARED, UNLOCKED
+}
 
 class StorageMachine {
     public Command command_stub;
@@ -84,11 +87,13 @@ class PathMachinePair {
     public Path path; 
     public StorageMachine machine;	
     public FileType file_type;
+    public LockType lock_type; 
 
     PathMachinePair(Path path_, FileType file_type_, StorageMachine machine_) {
 	this.path = path_;
 	this.machine = machine_;
 	this.file_type = file_type_;
+    	this.lock_type = UNLOCKED;
     }
 }
 
@@ -197,30 +202,71 @@ public class NamingServer implements Service, Registration
     public void lock(Path path, boolean exclusive) throws FileNotFoundException
     {
 	// save for later
-        throw new UnsupportedOperationException("not implemented");
+	DefaultMutableTreeNode pm = this.get(path);
+	if ( pm.LockType == UNLOCKED ) {
+	    if ( exclusive == true) {
+		pm.LockType == EXCLUSIVE;
+	    } else if ( exclusive == false) {
+	        pm.LockType == SHARED;
+	    }
+	} else if ( pm.LockType == SHARED) {
+	    if ( exclusive == true) {
+	        throw new IllegalStateException("the file is locked!");
+	    } else if ( exclusive == false) {
+	        pm.LockType == SHARED;
+	    }
+	} else if ( pm.LockType == EXCLUSIVE){
+		throw new IllegalStateException("the file is locked!");
+	}
+        //throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
     public void unlock(Path path, boolean exclusive)
     {
 	// save for later
-        throw new UnsupportedOperationException("not implemented");
+       	DefaultMutableTreeNode pm = this.get(path);
+	if ( pm.LockType == UNLOCKED ) {
+	    throw new IllegalStateException("file is not locked!");
+	} else if ( pm.LockType == SHARED) {
+	    if (exclusive == true) {
+	    	throw new IllegalStateException("file is not locked for shared access!");
+	    } else if (exclusive == false) {
+		pm.LockType = UNLOCKED;
+	    }   
+	} else if ( pm.LockType == EXCLUSIVE){
+	    if (exclusive == false) {
+	    	throw new IllegalStateException("file is not locked for exclusive access!");
+	    } else if (exclusive == true) {
+		pm.LockType = UNLOCKED;
+	    }
+	}
+	//throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
     public boolean isDirectory(Path path) throws FileNotFoundException
     {
+	
         PathMachinePair pmp = (PathMachinePair) this.get(file).getUserObject;
-	pmp.
+	if ( pmp.FileType == DIRECTORY ) {
+	    return true;
+	} else {
+	    return false;
+	}
 	//throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
     public String[] list(Path directory) throws FileNotFoundException
     {
+	Path[] pl = directory.list(File("/"));
+	String[] ret = new String[pl.length];
+	for ( int i = 0; i < pl.length; i++ ) {
+	    ret[i] = pl[i].toString();
+	}
+	return ret;
 	// check if directory is valid, if not return FileNotFoundException
-	 
-
         //throw new UnsupportedOperationException("not implemented");
     }
 
@@ -230,7 +276,7 @@ public class NamingServer implements Service, Registration
     {
 	// traverse the tree from root to the node representing the file, get the respective storage stub, use this stub to create the file on that storage server, close the stub,and return, add the node onto the tree
 
-    	DefaultMutableTreeNode pm = (PathMachinePair) this.get(file.parent());
+    	DefaultMutableTreeNode pm = this.get(file.parent());
 	// public void add(MutableTreeNode newChil)
 
 	//TODO(lmlaaron): currently use the first machine, need a policy	
@@ -244,7 +290,7 @@ public class NamingServer implements Service, Registration
     public boolean createDirectory(Path directory) throws FileNotFoundException
     {
         // traverse the tree from root to the node representing the file, get the respective storage stub, use this stub to create the file on that storage server, close the stub, adding the node to the tree
-    	DefaultMutableTreeNode pm = (PathMachinePair) this.get(file.parent());
+    	DefaultMutableTreeNode pm = this.get(file.parent());
 	// public void add(MutableTreeNode newChil)
 
 	//TODO(lmlaaron): currently use the first machine, need a policy	
