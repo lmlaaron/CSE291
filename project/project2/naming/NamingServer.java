@@ -1,5 +1,12 @@
 package naming;
 
+//TODO(lmlaaron):
+//1.locking mechanism refactoring: multiple shared lock using semafore? thread safe?
+//2. replication management using command interface: where to implement the counter
+//3. replication consistency management
+//4. start/stop machinism 
+//5. ".", ".." consideration
+
 import java.io.*;
 import java.net.*;
 import java.util.*;
@@ -80,6 +87,9 @@ class StorageMachine {
     StorageMachine(Command command_stub_, Storage client_stub_) {
       this.command_stub = command_stub_;
       this.client_stub = client_stub_;
+    }
+    boolean equal(StorageMachine another) {
+    	return (this.command_stub == another.command_stub) && (this.client_stub == another.client_stub);
     }
 }
 
@@ -278,55 +288,165 @@ public class NamingServer implements Service, Registration
 	return true;
     }
 
+
+
+    /** Creates the given directory, if it does not exist.
+        <p>
+        The parent directory should be locked for exclusive access before this
+        operation is performed.
+        @param directory Path at which the directory is to be created.
+        @return <code>true</code> if the directory is created successfully,
+                <code>false</code> otherwise. The directory is not created if
+                a file or directory with the given name already exists.
+        @throws FileNotFoundException If the parent directory does not exist.
+        @throws RMIException If the call cannot be completed due to a network
+                                 error.
+     */
     @Override
-    public boolean createDirectory(Path directory) throws FileNotFoundException
+    public boolean createDirectory(Path directory) throws RMIException, FileNotFoundException
     {
         // traverse the tree from root to the node representing the file, get the respective storage stub, use this stub to create the file on that storage server, close the stub, adding the node to the tree
     	DefaultMutableTreeNode pm = this.get(file.parent());
 
 	//TODO(lmlaaron): currently use the first machine, need a policy	
-	pm.add(new DefaultMutableTreeNode(new PathMachinePair(file,DIRECTORY,storage_machines[0])))
+	pm.add(new DefaultMutableTreeNode(new PathMachinePair(file,DIRECTORY,null)))
 	return true;
     }
 
+    /** Deletes a file or directory.
+    <p>
+    The parent directory should be locked for exclusive access before this
+    operation is performed.
+    @param path Path to the file or directory to be deleted.
+    @return <code>true</code> if the file or directory is deleted;
+            <code>false</code> otherwise. The root directory cannot be
+            deleted.
+    @throws FileNotFoundException If the object or parent directory does not
+                                  exist.
+    @throws RMIException If the call cannot be completed due to a network
+                         error.
+    */
     @Override
-    public boolean delete(Path path) throws FileNotFoundException
+    public boolean delete(Path path) throws RMIException, FileNotFoundException
     {
-	PathMachinePair pmp = (PathMachinePair) this.get(path).getUserObject;
-	pmp.command_stub.delete(Path path);
-        this.get(file).removeFromParent();
-	return true;
-	// traverse the tree from the root to the node representing the file, get the respective storage machine id, asking the naming server to delete that file on behalf of the client, and remove the node on the tree
+	DefaultMutableTreeNode pm = this.get(path);
+	if ( pm == null ) {
+	    throw new FileNotFoundException("file not found!");
+	}
+	PathMachinePair pmp = (PathMachinePair) pm.getUserObject();
+	if (pmp.FileType == FILE ) {
+	    try {
+	    	this.get(path).removeFromParent();
+	         // TODO(lmlaaron): for multiple replications, remove all
+	         //pmp.command_stub.delete(Path path);	    
+	    } catch (Throwable t) {
+	         return false;
+	    }
+	} else if ( pmp.FileType == DIRECTORY ) {
+	    for (int i = 0; i < pm.getChildCount(); i++ ) {
+	        boolean isNormal = false;
+	        try {
+	 	  isNormal = this.delete(pm.getChildAt(i).getUserObject().Path);
+	        } catch (Throwable t) {
+	        	  return false;
+	        }
+	        if (!isNormal) {
+	           return false;
+	        }
+	    }
+	    return true; 
+	}
     }
 
+
+    /** Returns a stub for the storage server hosting a file.
+        <p>
+        If the client intends to perform calls only to <code>read</code> or
+        <code>size</code> after obtaining the storage server stub, it should
+        lock the file for shared access before making this call. If it intends
+        to perform calls to <code>write</code>, it should lock the file for
+        exclusive access.
+        @param file Path to the file.
+        @return A stub for communicating with the storage server.
+        @throws FileNotFoundException If the file does not exist.
+        @throws RMIException If the call cannot be completed due to a network
+                             error.
+     */
     @Override
-    public Storage getStorage(Path file) throws FileNotFoundException
+    public Storage getStorage(Path file) throws RMIException, FileNotFoundException
     {
-	PathMachinePair pmp = (PathMachinePair) this.get(file).getUserObject;
+	DefaultMutableTreeNode pm = this.get(file);
+	if ( pm == null ) {
+	    throw new FileNotFoundException("file not found");
+	}
+	PathMachinePair pmp = (PathMachinePair) pm.getUserObject();
 	return pmp.machine.client_stub;
     }
 
     // The method register is documented in Registration.java.
+    /*
+        Registration requries the naming server to lock the root directory for
+        exclusive access. Therefore, it is best done when there is not heavy
+        usage of the filesystem.
+
+       @param client_stub Storage server client service stub. This will be
+                          given to clients when operations need to be performed
+                          on a file on the storage server.
+       @param command_stub Storage server command service stub. This will be
+                           used by the naming server to issue commands that
+                           modify the directory tree on the storage server.
+       @param files The list of files stored on the storage server. This list
+                    is merged with the directory tree already present on the
+                    naming server. Duplicate filenames are dropped.
+       @return A list of duplicate files to delete on the local storage of the
+               registering storage server.
+       @throws IllegalStateException If the storage server is already
+                                     registered.
+       @throws NullPointerException If any of the arguments is
+                                    <code>null</code>.
+       @throws RMIException If the call cannot be completed due to a network
+                            error.
+    */
     @Override
     public Path[] register(Storage client_stub, Command command_stub,
-                           Path[] files)
+                           Path[] files) throws NullPointerException, IllegalStateException, RMIException
     {
-        this.storage_machines.add(StorageMachine(client_stub,command_stub));
-	ArrayList<String> ret = new ArrayList<>(); 
-	for ( int i = 0; i < files.length; i++ ) {
-	   if( this.get(file[i]) != null ) {
-               ret.add(file[i]);
-	   } else {
-	       this.createFile(file[i]);
-	   } 
+	// lock the root directory
+	try {
+	    this.lock(new Path("/"), true);    
+	} catch (Throwable t) {
+	    throw new ApplicationFailure("cannot lock root!");
 	}
-	return ret;
 
-	//TODO(lmlaaron):
-	//1. scan all the files on this storage machine
-	//2. compare the files to be deleted
-	//3. register the files on the naming server to be added
-	//4. return the file list to be deleted
-	//throw new UnsupportedOperationException("not implemented");
+	
+	ArrayList<String> ret = new ArrayList<>(); 
+	try {
+	    if ( client_stub == null || command_stub == null || files == null ) {
+	        throw new NullPointerException("null pointer");
+	    }
+	    if ( storage_machines.contains(new StorageMachine(client_stub,command_stub))){
+ 	        throw new IllegalStateException("the storage server is registered!");
+	    }	
+            
+	    // scan and compare the storage directory tree and naming server directory tree
+	    this.storage_machines.add(new StorageMachine(client_stub,command_stub));
+	    for ( int i = 0; i < files.length; i++ ) {
+	       if( this.get(file[i]) != null ) {
+                   ret.add(file[i]);
+	       } else {
+	           this.createFile(file[i]);
+	       } 
+	    }
+	} catch (Throwable t) {
+	    throw t;
+	} finally {
+	    // unlock the root directory
+	    try {
+	        this.lock(new Path("/"), true);    
+	    } catch (Throwable t) {
+	        throw new ApplicationFailure("cannot unlock root!");
+	    }
+            return ret;
+	}
     }
 }
