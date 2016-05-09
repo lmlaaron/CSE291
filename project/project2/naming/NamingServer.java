@@ -65,7 +65,9 @@ import javax.swing.event.TreeSelectionListener;
     <code>NamingStubs</code>.
  */
 
-
+enum FileType {
+    FILE, DIRECTORY
+}
 
 
 class StorageMachine {
@@ -81,10 +83,12 @@ class StorageMachine {
 class PathMachinePair {
     public Path path; 
     public StorageMachine machine;	
+    public FileType file_type;
 
-    PathMachinePair(Path path_, StorageMachine machine_) {
+    PathMachinePair(Path path_, FileType file_type_, StorageMachine machine_) {
 	this.path = path_;
 	this.machine = machine_;
+	this.file_type = file_type_;
     }
 }
 
@@ -113,7 +117,7 @@ public class NamingServer implements Service, Registration
         storage_machines = new ArrayList<StorageMachine>();
 
 	//TODO(lmlaaron): replace null with "/" in path object
-	root = new DefaultMutableTreeNode(new PathMachinePair(Path("/"),null))
+	root = new DefaultMutableTreeNode(new PathMachinePair(Path("/"), DIRECTORY,null))
 	tree = new Jtree(root);
 	// top.add(new DefaultMutableTreeNode)
 	//root = new TreeNode<PathMachinePair>();
@@ -128,7 +132,7 @@ public class NamingServer implements Service, Registration
         
         // traverse the tree from root to the node representing the file, return the respective machine stub
         while (itr.hasNext()) {
-            cpath = current_path + itr.next();	    
+            cpath = cpath + itr.next();	    
             for ( int i = 0; i < ctr.getChildCount(); i++ ) {
             	if (ctr.getChildAt(i).path == Path(cpath)) {
         	    break;
@@ -206,7 +210,9 @@ public class NamingServer implements Service, Registration
     @Override
     public boolean isDirectory(Path path) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+        PathMachinePair pmp = (PathMachinePair) this.get(file).getUserObject;
+	pmp.
+	//throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
@@ -224,23 +230,39 @@ public class NamingServer implements Service, Registration
     {
 	// traverse the tree from root to the node representing the file, get the respective storage stub, use this stub to create the file on that storage server, close the stub,and return, add the node onto the tree
 
-        throw new UnsupportedOperationException("not implemented");
+    	DefaultMutableTreeNode pm = (PathMachinePair) this.get(file.parent());
+	// public void add(MutableTreeNode newChil)
+
+	//TODO(lmlaaron): currently use the first machine, need a policy	
+	pm.add(new DefaultMutableTreeNode(new PathMachinePair(file,FILE,storage_machines[0])))
+	return true;
+	//pmp.machine.client_stub.write(file, 0);
+	//throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
     public boolean createDirectory(Path directory) throws FileNotFoundException
     {
         // traverse the tree from root to the node representing the file, get the respective storage stub, use this stub to create the file on that storage server, close the stub, adding the node to the tree
-        throw new UnsupportedOperationException("not implemented");
+    	DefaultMutableTreeNode pm = (PathMachinePair) this.get(file.parent());
+	// public void add(MutableTreeNode newChil)
+
+	//TODO(lmlaaron): currently use the first machine, need a policy	
+	pm.add(new DefaultMutableTreeNode(new PathMachinePair(file,DIRECTORY,storage_machines[0])))
+	return true;
+	//pmp.machine.client_stub.write(file, 0);
+	//throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
     public boolean delete(Path path) throws FileNotFoundException
     {
-	//PathMachinePair pmp = (PathMachinePair) this.get(path).getUserObject;
-
+	PathMachinePair pmp = (PathMachinePair) this.get(path).getUserObject;
+	pmp.command_stub.delete(Path path);
+        this.get(file).removeFromParent();
+	return true;
 	// traverse the tree from the root to the node representing the file, get the respective storage machine id, asking the naming server to delete that file on behalf of the client, and remove the node on the tree
-        throw new UnsupportedOperationException("not implemented");
+        //throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
