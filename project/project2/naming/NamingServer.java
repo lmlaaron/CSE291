@@ -85,6 +85,7 @@ class StorageMachine {
 
 class PathMachinePair {
     public Path path; 
+    // TODO(lmlaaron):modify the machine to be an array
     public StorageMachine machine;	
     public FileType file_type;
     public LockType lock_type; 
@@ -124,8 +125,6 @@ public class NamingServer implements Service, Registration
 	//TODO(lmlaaron): replace null with "/" in path object
 	root = new DefaultMutableTreeNode(new PathMachinePair(Path("/"), DIRECTORY,null))
 	tree = new Jtree(root);
-	// top.add(new DefaultMutableTreeNode)
-	//root = new TreeNode<PathMachinePair>();
     }
 
     // need to write a function given a Path, return the <file, storageMachine> node on the tree
@@ -151,7 +150,6 @@ public class NamingServer implements Service, Registration
             }
         }
         return ctr;
-        //throw new UnsupportedOperationException("not implemented");
     }
 
     /** Starts the naming server.
@@ -201,7 +199,7 @@ public class NamingServer implements Service, Registration
     @Override
     public void lock(Path path, boolean exclusive) throws FileNotFoundException
     {
-	// save for later
+	// the semantics requires all teh files to be locked
 	DefaultMutableTreeNode pm = this.get(path);
 	if ( pm.LockType == UNLOCKED ) {
 	    if ( exclusive == true) {
@@ -218,14 +216,13 @@ public class NamingServer implements Service, Registration
 	} else if ( pm.LockType == EXCLUSIVE){
 		throw new IllegalStateException("the file is locked!");
 	}
-        //throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
     public void unlock(Path path, boolean exclusive)
     {
-	// save for later
-       	DefaultMutableTreeNode pm = this.get(path);
+       	// the semantics requires all the files alone the path to be locked
+	DefaultMutableTreeNode pm = this.get(path);
 	if ( pm.LockType == UNLOCKED ) {
 	    throw new IllegalStateException("file is not locked!");
 	} else if ( pm.LockType == SHARED) {
@@ -241,33 +238,30 @@ public class NamingServer implements Service, Registration
 		pm.LockType = UNLOCKED;
 	    }
 	}
-	//throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
     public boolean isDirectory(Path path) throws FileNotFoundException
     {
-	
         PathMachinePair pmp = (PathMachinePair) this.get(file).getUserObject;
 	if ( pmp.FileType == DIRECTORY ) {
 	    return true;
 	} else {
 	    return false;
 	}
-	//throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
     public String[] list(Path directory) throws FileNotFoundException
     {
-	Path[] pl = directory.list(File("/"));
-	String[] ret = new String[pl.length];
-	for ( int i = 0; i < pl.length; i++ ) {
-	    ret[i] = pl[i].toString();
+	PathMachinePair pm = this.get(directory);
+	String[] ret = new String[pm.getChildCount()];
+	for ( int i = 0; i < pm.getChildCount(); i++ ) {
+	    PathMachinePair pmp = (PathMachinePair) pm.getChildAt(i).getUserObject();
+	    ret[i] = pmp.path.toString();
 	}
 	return ret;
 	// check if directory is valid, if not return FileNotFoundException
-        //throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
@@ -282,8 +276,6 @@ public class NamingServer implements Service, Registration
 	//TODO(lmlaaron): currently use the first machine, need a policy	
 	pm.add(new DefaultMutableTreeNode(new PathMachinePair(file,FILE,storage_machines[0])))
 	return true;
-	//pmp.machine.client_stub.write(file, 0);
-	//throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
@@ -291,13 +283,10 @@ public class NamingServer implements Service, Registration
     {
         // traverse the tree from root to the node representing the file, get the respective storage stub, use this stub to create the file on that storage server, close the stub, adding the node to the tree
     	DefaultMutableTreeNode pm = this.get(file.parent());
-	// public void add(MutableTreeNode newChil)
 
 	//TODO(lmlaaron): currently use the first machine, need a policy	
 	pm.add(new DefaultMutableTreeNode(new PathMachinePair(file,DIRECTORY,storage_machines[0])))
 	return true;
-	//pmp.machine.client_stub.write(file, 0);
-	//throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
@@ -308,7 +297,6 @@ public class NamingServer implements Service, Registration
         this.get(file).removeFromParent();
 	return true;
 	// traverse the tree from the root to the node representing the file, get the respective storage machine id, asking the naming server to delete that file on behalf of the client, and remove the node on the tree
-        //throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
@@ -316,7 +304,6 @@ public class NamingServer implements Service, Registration
     {
 	PathMachinePair pmp = (PathMachinePair) this.get(file).getUserObject;
 	return pmp.machine.client_stub;
-        //throw new UnsupportedOperationException("not implemented");
     }
 
     // The method register is documented in Registration.java.
@@ -324,8 +311,17 @@ public class NamingServer implements Service, Registration
     public Path[] register(Storage client_stub, Command command_stub,
                            Path[] files)
     {
-        this.storage_machines.add(StorageMachine(client_stub,command_stub))
-	
+        this.storage_machines.add(StorageMachine(client_stub,command_stub));
+	ArrayList<String> ret = new ArrayList<>(); 
+	for ( int i = 0; i < files.length; i++ ) {
+	   if( this.get(file[i]) != null ) {
+               ret.add(file[i]);
+	   } else {
+	       this.createFile(file[i]);
+	   } 
+	}
+	return ret;
+
 	//TODO(lmlaaron):
 	//1. scan all the files on this storage machine
 	//2. compare the files to be deleted
