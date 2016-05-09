@@ -20,7 +20,8 @@ import javax.swing.tree.*;
 import javax.swing.*;
 import javax.swing.event;
 import java.io.File;
- 
+
+import java.util.concurrent.ThreadLocalRandom
 /**
  * This application that requires the following additional files:
  *   TreeDemoHelp.html
@@ -46,7 +47,8 @@ import javax.swing.tree.TreeSelectionModel;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
 
-
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /** Naming server.
 
@@ -76,9 +78,9 @@ enum FileType {
     FILE, DIRECTORY
 }
 
-enum LockType {
-    EXCLUSIVE, SHARED, UNLOCKED
-}
+//enum LockType {
+//    EXCLUSIVE, SHARED, UNLOCKED
+//}
 
 class StorageMachine {
     public Command command_stub;
@@ -95,19 +97,79 @@ class StorageMachine {
 
 class PathMachinePair {
     public Path path; 
-    // TODO(lmlaaron):modify the machine to be an array
     public ArrayList<StorageMachine> machine;	
     public FileType file_type;
-    public LockType lock_type; 
-    public int shared_lockers;
+    public FileLock file_lock;
     PathMachinePair(Path path_, FileType file_type_, StorageMachine machine_) {
 	this.path = path_;
 	this.machine = new ArrayList<StorageMachine>(); 
 	this.machine.add(machine_);
 	this.file_type = file_type_;
-    	this.lock_type = UNLOCKED;
-	this.shared_lockers = 0;
+    	this.file_lock = new FileLock();
     }
+}
+
+class FileLock {
+    // -1 means exclusive locked, +n neans shared by n locks, 0 means unlocked
+    private AtomicInteger shared_lockers;
+    private AtomicInteger access_counter;
+    public boolean isExclusiveLocked() {
+    	return (shared_lockers.intValue() == -1 );
+    }
+    public boolean isSharedLocked() {
+    	return (shared_lockers.intValue() > 0 );
+    }
+    public synchronized boolean lock(boolean exclusive) {
+	if (exclusive) {
+	    if ( this.isSharedLocked() || this.isExclusiveLocked() ) {
+	        return false;
+	    } else {
+	        this.shared_lockers.set(-1);
+		return true;
+	    }
+	} else {
+	    if (this.isExclusiveLocked()) {
+	        return false;
+	    } else {
+	        this.access_counter.incrementAndGet();
+		this.shared_lockers.incrementAndGet(); 
+	    }
+	}
+    }
+    public synchronized boolean unlock(boolean exclusive) {
+	if (exclusive) {
+	    if ( this.isExclusiveLocked()) {
+	        this.shared_lockers.set(0);
+	    } else if ( this.isSharedLocked()){
+	    	return false;
+	    } else {
+		 return false;
+	    }
+	} else {
+	    if ( this.isExclusiveLocked() ) {
+	    	return false;
+	    } else if ( this.isSharedLocked() ) {
+	    	this.shared_lockers.decrementAndGet();
+	    	return true;
+	    } else {
+		return false;
+	    }
+	}
+    }
+    public synchronized void replicate(Path path, Storage server, Command command_stub) {
+        if ( access_counter.intValue() == 20 ) {
+	    access_counter.set(0) = 0;
+	    try {
+	        command_stub.copy(path, server);
+	    } catch (Throwable t) {
+	        throw t;
+	    }
+	}
+    }
+    FileLock() {
+	shared_lockers = new AtomicInteger(0);
+	access_counter = new AtomicInteger(0);
+    } 
 }
 
 public class NamingServer implements Service, Registration
@@ -120,7 +182,9 @@ public class NamingServer implements Service, Registration
    //private TreeNode<PathMachinePair> root;
    private JTree tree;
    private DefaultMutableTreeNode root;
-   //private DefaultMutableTreeNode<PathMachinePair> root;
+   // TODO(lmlaaron): adding a atomic variable implying the state of the namingserver: 
+   // START, STOP
+   // need to be atomic
 
     /** Creates the naming server object.
 
@@ -223,34 +287,86 @@ public class NamingServer implements Service, Registration
     @Override
     public void lock(Path path, boolean exclusive) throws FileNotFoundException
     {
-	// the semantics requires all teh files to be locked
+	// TODO(lmlaaron): change the file read(shared)/write(exclusive) counter
+   	// the semantics requires all the files to be locked
+	// TODO(lmlaaron): lock the upward object for SHARED access
+	// TODO(lmlaaron): lock the downward objects for EXCLUSIVE acccess
 	DefaultMutableTreeNode pm = this.get(path);
 	if ( pm == null ) {
 	    throw new FileNotFoundException("file not found!");
 	}
-	if ( pm.FileType == FILE && pm.LockType == EXCLUSIVE && ) {
-	    throw new IllegalStateException("file is locked!");
-	}
+	
 	if ( this.isClosed()) {
 	    throw new IllegalStateException("file is locked");
 	}
+	
 	try {
-	    if ( pm.LockType == UNLOCKED ) {
-	        if ( exclusive == true) {
-	    	pm.LockType == EXCLUSIVE;
-	        } else if ( exclusive == false) {
-	            pm.LockType == SHARED;
-		    pm.shared_lockers++;
+	    if (!pm.file_lock.lock(exclusive)) {
+	        //return;
+		throw new Error("error");
+	    }
+	
+	    if ( pm.file_type == FILE && exclusive ) {
+	        for ( int i = 1; i < pm.machine.size(); i++ ) {
+	            if (!pm.machine.get(i).command_stub.delete(path)) {
+	    	        throw new IllegalStateException("replication cannot be deleted");
+	    	    }
 	        }
-	    } else if ( pm.LockType == SHARED) {
-	        if ( exclusive == true) {
-	            throw new IllegalStateException("the file is locked!");
-	        } else if ( exclusive == false) {
-	            pm.LockType == SHARED;
-		    pm.shared_lockers++;
+	        //throw new IllegalStateException("file is locked!");
+	    }
+
+	    //TODO(lmlaaron): replication policy here
+	    int random_int = randomGenerator.nextInt()%(storage_machines.size());
+	    while (pm.getUserObject().machine.contain(storage_machines.get(random_int)) ) {
+	    	random_int = randomGenerator.nextInt();
+	    }
+	    pm.file_lock.replicate(path, this.storage_machines.get(random_int).command_stub, pm.getUserObject().machine.get(0).client_stub); 	
+	    ArrayList<DefaultMutableTreeNode> parents = new ArrayList<DefaultMutableTreeNode>();
+	    DefaultMutableTreeNode parent = pm.getParent();
+	    boolean success = true;
+	    while (parent != null ) {
+	    	if ( !parent.file_lock.lock(false)) {
+	        	success = false;
+	    		break; 
 	        }
-	    } else if ( pm.LockType == EXCLUSIVE){
-	    	throw new IllegalStateException("the file is locked!");
+	        parents.add(parent);
+	        parent = parent.getParent();
+	    }
+
+	    // lock from current object upward, if failed at some point undo all the lock
+	    if ( success == false ) {
+	        for ( int i = parents.size() -1; i >= 0; i-- ) {
+	            parents.file_lock.unlock(false);
+	        }
+	        //return;
+	    	throw new Error("error");
+	    }
+	    
+	    //TODO(lmlaaron): for exclusive access, lock the downstream objects for exclusive access    
+	    //TODO(lmlaaron): this BFS algorithm may have performance issues, consider modifying to multithread (need to watch out for thread safety)
+	    if (exclusive) {
+	        ArrayList<DefaultMutableTreeNode> nodes_to_visit = new ArrayList<DefaultMutableTreeNode>();
+		nodes_to_visit.add(pm);
+		int cursor = 0;	
+		while (cursor < nodes_to_visit.size()) {
+		    DefaultMutableTreeNode currentnode = nodes_to_visit.get(cursor);
+	    	    if (!currentnode.file_lock.lock(true)) {
+		        success = false;
+			break;
+		    }
+		    for ( int i = 0; i < currentnode.getChildCount(); i++ ) {
+		    	nodes_to_visit.add(currentnode.getChildAt(i));
+		    }
+		    cursor++;
+		}
+		
+		if (!success ) {
+	            for ( int i = cursor - 1; i >= 0; i-- ) {
+	                parents.file_lock.unlock(true);
+	            }
+	            //return;
+		    throw new Error("error");
+		}
 	    }
 	} catch (Throwable t) {
 	    throw new IllegalStateException("the lock attempt being interrupted");
@@ -275,31 +391,68 @@ public class NamingServer implements Service, Registration
     public void unlock(Path path, boolean exclusive)
     {
        	// the semantics requires all the files alone the path to be locked
-	// TODO(lmlaaron): shared lock semafore!
 	// TODO(lmlaaron): locker queue?
 	DefaultMutableTreeNode pm = this.get(path);
 	if ( pm == null ) {
 	    throw new IllegalStateException("illegal state");
 	}
-	if ( pm.LockType == UNLOCKED ) {
-	    throw new IllegalStateException("file is not locked!");
-	} else if ( pm.LockType == SHARED) {
-	    if (exclusive == true) {
-	    	throw new IllegalStateException("file is not locked for shared access!");
-	    } else if (exclusive == false) {
-		pm.LockType = UNLOCKED;
-		pm.shared_lockers--;
-	    }   
-	} else if ( pm.LockType == EXCLUSIVE){
-	    if (exclusive == false) {
-	    	throw new IllegalStateException("file is not locked for exclusive access!");
-	    } else if (exclusive == true) {
-		pm.LockType = UNLOCKED;
+
+	try {
+	    if (!pm.file_lock.unlock(exclusive)) {
+	        //return;
+		throw new Error("error");
 	    }
+	    ArrayList<DefaultMutableTreeNode> parents = new ArrayList<DefaultMutableTreeNode>();
+	    DefaultMutableTreeNode parents = pm.getParent();
+	    boolean success = true;
+	    while (parent != null ) {
+	    	if ( !parent.file_lock.unlock(false)) {
+	        	success = false;
+	    	break; 
+	        }
+	        parents.add(parent);
+		parent = parent.getParent();
+	    }
+
+	    // lock from current object upward, if failed at some point undo all the lock
+	    if ( success == false ) {
+	        for ( int i = parents.size() -1; i >= 0; i-- ) {
+	            nodes_to_visit.file_lock.lock(false);
+	        }
+	        //return;
+	    	throw new Error("error");
+	    }
+	    
+	    //TODO(lmlaaron): for exclusive access, lock the downstream objects for exclusive access    
+	    //TODO(lmlaaron): need to improve the BFS algorithm for performance
+	    if (exclusive) {
+	        ArrayList<DefaultMutableTreeNode> nodes_to_visit = new ArrayList<DefaultMutableTreeNode>();
+		nodes_to_visit.add(pm);
+		int cursor = 0;	
+		while (cursor < nodes_to_visit.size()) {
+		    DefaultMutableTreeNode currentnode = nodes_to_visit.get(cursor);
+		    if (!currentnode.file_lock.unlock(true)) {
+		        success = false;
+			break;
+		    }
+	
+		    for ( int i = 0; i < currentnode.getChildCount(); i++ ) {
+		    	nodes_to_visit.add(currentnode.getChildAt(i));
+		    }
+		    cursor++;
+		}
+		if (!success ) {
+	            for ( int i = cursor - 1; i >= 0; i-- ) {
+	                nodes_to_visit.file_lock.lock(true);
+	            }
+	            //return;
+		    throw new Error("error");
+		}
+	    }
+	} catch (Throwable t) {
+	    throw new IllegalStateException("the lock attempt being interrupted");
 	}
     }
-
-
 
     /** Determines whether a path refers to a directory.
         <p>
@@ -322,7 +475,7 @@ public class NamingServer implements Service, Registration
 	    throw new FileNotFoundException("file not found!");
 	}
 	PathMachinePair pmp = (PathMachinePair) pm.getUserObject();
-	if ( pmp.FileType == DIRECTORY ) {
+	if ( pmp.file_type == DIRECTORY ) {
 	    return true;
 	} else {
 	    return false;
@@ -344,16 +497,22 @@ public class NamingServer implements Service, Registration
     @Override
     public String[] list(Path directory) throws RMIException, FileNotFoundException
     {
+	//TODO(lmlaaron): list ".", ".."
 	DefaultMutableTreeNode pm = this.get(directory);
 	if ( pm == null ) {
 	    throw new FileNotFoundException("no such directory");
 	}
+	if ( pm.file_type != DIRECTORY ) {
+	    throw new FileNotFoundException("no such directory");
+	}
 
-	String[] ret = new String[pm.getChildCount()];
+	String[] ret = new String[pm.getChildCount()+2];
 	for ( int i = 0; i < pm.getChildCount(); i++ ) {
 	    PathMachinePair pmp = (PathMachinePair) pm.getChildAt(i).getUserObject();
 	    ret[i] = pmp.path.toString();
 	}
+	ret[pm.getChildCount()] = ".";
+	ret[pm.getChildCount()] = "..";
 	return ret;
     }
 
@@ -388,10 +547,12 @@ public class NamingServer implements Service, Registration
 	}
 	
 	//TODO(lmlaaron): Need a policy to select the storage server to save the file	
-	pm.add(new DefaultMutableTreeNode(new PathMachinePair(file, FILE, storage_machines.get(0) )));
+	try {
+	    pm.add(new DefaultMutableTreeNode(new PathMachinePair(file, FILE, storage_machines.get(0) )));
+	} catch (Throwable t) {
+	    return false;
+	}
 	return true;
-   
-    
     }
 
 
@@ -421,7 +582,11 @@ public class NamingServer implements Service, Registration
 	}
 	
 	//TODO(lmlaaron): for directory the storage server is null because they do not need to be saved on storage server.	
-	pm.add(new DefaultMutableTreeNode(new PathMachinePair(directory, DIRECTORY, null)));
+	try {
+	    pm.add(new DefaultMutableTreeNode(new PathMachinePair(directory, DIRECTORY, null)));
+	} catch (Throwable t) {
+	    return false;
+	}
 	return true;
     }
 
@@ -446,7 +611,7 @@ public class NamingServer implements Service, Registration
 	    throw new FileNotFoundException("file not found!");
 	}
 	PathMachinePair pmp = (PathMachinePair) pm.getUserObject();
-	if (pmp.FileType == FILE ) {
+	if (pmp.file_type == FILE ) {
 	    try {
 	    	this.get(path).removeFromParent();
 	         // TODO(lmlaaron): for multiple replications, remove all
@@ -454,7 +619,7 @@ public class NamingServer implements Service, Registration
 	    } catch (Throwable t) {
 	         return false;
 	    }
-	} else if ( pmp.FileType == DIRECTORY ) {
+	} else if ( pmp.file_type == DIRECTORY ) {
 	    for (int i = 0; i < pm.getChildCount(); i++ ) {
 	        boolean isNormal = false;
 	        try {
@@ -529,7 +694,6 @@ public class NamingServer implements Service, Registration
 	} catch (Throwable t) {
 	    throw new ApplicationFailure("cannot lock root!");
 	}
-
 	
 	ArrayList<String> ret = new ArrayList<>(); 
 	try {
@@ -546,7 +710,17 @@ public class NamingServer implements Service, Registration
 	       if( this.get(file[i]) != null ) {
                    ret.add(file[i]);
 	       } else {
-	           this.createFile(file[i]);
+	           //TODO(lmlaaron): for deep path, e.g., need to create the directory before create the files
+		   ArrayList<Path> parents = new ArrayList<Path>();
+		   Path parent = file[i].parent();
+		   while (this.get(parent) == null ) {
+		       parents.add(parent);	
+		       parent = parent.getParent();
+		   }
+		   for ( int j = parents.size() - 1; j >= 0; j-- ) {
+		       this.createDirectory(parents.get(j));		
+		   }
+		   this.createFile(file[i]);
 	       } 
 	    }
 	} catch (Throwable t) {
