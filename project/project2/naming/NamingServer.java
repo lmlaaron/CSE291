@@ -88,7 +88,7 @@ class StorageMachine {
       this.command_stub = command_stub_;
       this.client_stub = client_stub_;
     }
-    boolean equal(StorageMachine another) {
+    boolean equals(StorageMachine another) {
     	return (this.command_stub == another.command_stub) && (this.client_stub == another.client_stub);
     }
 }
@@ -96,15 +96,17 @@ class StorageMachine {
 class PathMachinePair {
     public Path path; 
     // TODO(lmlaaron):modify the machine to be an array
-    public StorageMachine machine;	
+    public ArrayList<StorageMachine> machine;	
     public FileType file_type;
     public LockType lock_type; 
-
+    public int shared_lockers;
     PathMachinePair(Path path_, FileType file_type_, StorageMachine machine_) {
 	this.path = path_;
-	this.machine = machine_;
+	this.machine = new ArrayList<StorageMachine>(); 
+	this.machine.add(machine_);
 	this.file_type = file_type_;
     	this.lock_type = UNLOCKED;
+	this.shared_lockers = 0;
     }
 }
 
@@ -119,8 +121,6 @@ public class NamingServer implements Service, Registration
    private JTree tree;
    private DefaultMutableTreeNode root;
    //private DefaultMutableTreeNode<PathMachinePair> root;
-   
-   
 
     /** Creates the naming server object.
 
@@ -129,10 +129,7 @@ public class NamingServer implements Service, Registration
      */
     public NamingServer()
     {
-  	//throw new UnsupportedOperationException("not implemented");
         storage_machines = new ArrayList<StorageMachine>();
-
-	//TODO(lmlaaron): replace null with "/" in path object
 	root = new DefaultMutableTreeNode(new PathMachinePair(Path("/"), DIRECTORY,null))
 	tree = new Jtree(root);
     }
@@ -206,33 +203,84 @@ public class NamingServer implements Service, Registration
     }
 
     // The following public methods are documented in Service.java.
+    /**
+        @param path The file or directory to be locked.
+        @param exclusive If <code>true</code>, the object is to be locked for
+                         exclusive access. Otherwise, it is to be locked for
+                         shared access.
+        @throws FileNotFoundException If the object specified by
+                                      <code>path</code> cannot be found.
+        @throws IllegalStateException If the object is a file, the file is
+                                      being locked for write access, and a stale
+                                      copy cannot be deleted from a storage
+                                      server for any reason, or if the naming
+                                      server has shut down and the lock attempt
+                                      has been interrupted.
+        @throws RMIException If the call cannot be completed due to a network
+                             error. This includes server shutdown while a client
+                             is waiting to obtain the lock.
+     */ 
     @Override
     public void lock(Path path, boolean exclusive) throws FileNotFoundException
     {
 	// the semantics requires all teh files to be locked
 	DefaultMutableTreeNode pm = this.get(path);
-	if ( pm.LockType == UNLOCKED ) {
-	    if ( exclusive == true) {
-		pm.LockType == EXCLUSIVE;
-	    } else if ( exclusive == false) {
-	        pm.LockType == SHARED;
+	if ( pm == null ) {
+	    throw new FileNotFoundException("file not found!");
+	}
+	if ( pm.FileType == FILE && pm.LockType == EXCLUSIVE && ) {
+	    throw new IllegalStateException("file is locked!");
+	}
+	if ( this.isClosed()) {
+	    throw new IllegalStateException("file is locked");
+	}
+	try {
+	    if ( pm.LockType == UNLOCKED ) {
+	        if ( exclusive == true) {
+	    	pm.LockType == EXCLUSIVE;
+	        } else if ( exclusive == false) {
+	            pm.LockType == SHARED;
+		    pm.shared_lockers++;
+	        }
+	    } else if ( pm.LockType == SHARED) {
+	        if ( exclusive == true) {
+	            throw new IllegalStateException("the file is locked!");
+	        } else if ( exclusive == false) {
+	            pm.LockType == SHARED;
+		    pm.shared_lockers++;
+	        }
+	    } else if ( pm.LockType == EXCLUSIVE){
+	    	throw new IllegalStateException("the file is locked!");
 	    }
-	} else if ( pm.LockType == SHARED) {
-	    if ( exclusive == true) {
-	        throw new IllegalStateException("the file is locked!");
-	    } else if ( exclusive == false) {
-	        pm.LockType == SHARED;
-	    }
-	} else if ( pm.LockType == EXCLUSIVE){
-		throw new IllegalStateException("the file is locked!");
+	} catch (Throwable t) {
+	    throw new IllegalStateException("the lock attempt being interrupted");
 	}
     }
 
+    /** Unlocks a file or directory.
+        @param path The file or directory to be unlocked.
+        @param exclusive Must be <code>true</code> if the object was locked for
+                         exclusive access, and <code>false</code> if it was
+                         locked for shared access.
+        @throws IllegalArgumentException If the object specified by
+                                         <code>path</code> cannot be found. This
+                                         is a client programming error, as the
+                                         path must have previously been locked,
+                                         and cannot be removed while it is
+                                         locked.
+        @throws RMIException If the call cannot be completed due to a network
+                             error.
+     */
     @Override
     public void unlock(Path path, boolean exclusive)
     {
        	// the semantics requires all the files alone the path to be locked
+	// TODO(lmlaaron): shared lock semafore!
+	// TODO(lmlaaron): locker queue?
 	DefaultMutableTreeNode pm = this.get(path);
+	if ( pm == null ) {
+	    throw new IllegalStateException("illegal state");
+	}
 	if ( pm.LockType == UNLOCKED ) {
 	    throw new IllegalStateException("file is not locked!");
 	} else if ( pm.LockType == SHARED) {
@@ -240,6 +288,7 @@ public class NamingServer implements Service, Registration
 	    	throw new IllegalStateException("file is not locked for shared access!");
 	    } else if (exclusive == false) {
 		pm.LockType = UNLOCKED;
+		pm.shared_lockers--;
 	    }   
 	} else if ( pm.LockType == EXCLUSIVE){
 	    if (exclusive == false) {
@@ -250,10 +299,29 @@ public class NamingServer implements Service, Registration
 	}
     }
 
+
+
+    /** Determines whether a path refers to a directory.
+        <p>
+        The parent directory should be locked for shared access before this
+        operation is performed. This is to prevent the object in question from
+        being deleted or re-created while this call is in progress.
+        @param path The object to be checked.
+        @return <code>true</code> if the object is a directory,
+                <code>false</code> if it is a file.
+        @throws FileNotFoundException If the object specified by
+                                      <code>path</code> cannot be found.
+        @throws RMIException If the call cannot be completed due to a network
+                             error.
+     */
     @Override
     public boolean isDirectory(Path path) throws FileNotFoundException
     {
-        PathMachinePair pmp = (PathMachinePair) this.get(file).getUserObject;
+        DefaultMutableTreeNode pm = this.get(path);
+	if (pm == null ) {
+	    throw new FileNotFoundException("file not found!");
+	}
+	PathMachinePair pmp = (PathMachinePair) pm.getUserObject();
 	if ( pmp.FileType == DIRECTORY ) {
 	    return true;
 	} else {
@@ -261,31 +329,69 @@ public class NamingServer implements Service, Registration
 	}
     }
 
+    /** Lists the contents of a directory.
+        <p>
+        The directory should be locked for shared access before this operation
+        is performed, because this operation reads the directory's child list.
+        @param directory The directory to be listed.
+        @return An array of the directory entries. The entries are not
+                guaranteed to be in any particular order.
+        @throws FileNotFoundException If the given path does not refer to a
+                                      directory.
+        @throws RMIException If the call cannot be completed due to a network
+                             error.
+     */
     @Override
-    public String[] list(Path directory) throws FileNotFoundException
+    public String[] list(Path directory) throws RMIException, FileNotFoundException
     {
-	PathMachinePair pm = this.get(directory);
+	DefaultMutableTreeNode pm = this.get(directory);
+	if ( pm == null ) {
+	    throw new FileNotFoundException("no such directory");
+	}
+
 	String[] ret = new String[pm.getChildCount()];
 	for ( int i = 0; i < pm.getChildCount(); i++ ) {
 	    PathMachinePair pmp = (PathMachinePair) pm.getChildAt(i).getUserObject();
 	    ret[i] = pmp.path.toString();
 	}
 	return ret;
-	// check if directory is valid, if not return FileNotFoundException
     }
 
+    /** Creates the given file, if it does not exist.
+        <p>
+        The parent directory should be locked for exclusive access before this
+        operation is performed.
+        @param file Path at which the file is to be created.
+        @return <code>true</code> if the file is created successfully,
+                <code>false</code> otherwise. The file is not created if a file
+                or directory with the given name already exists.
+        @throws FileNotFoundException If the parent directory does not exist.
+        @throws IllegalStateException If no storage servers are connected to the
+                                      naming server.
+        @throws RMIException If the call cannot be completed due to a network
+                             error.
+     */
     @Override
     public boolean createFile(Path file)
         throws RMIException, FileNotFoundException
     {
-	// traverse the tree from root to the node representing the file, get the respective storage stub, use this stub to create the file on that storage server, close the stub,and return, add the node onto the tree
-
-    	DefaultMutableTreeNode pm = this.get(file.parent());
-	// public void add(MutableTreeNode newChil)
-
-	//TODO(lmlaaron): currently use the first machine, need a policy	
-	pm.add(new DefaultMutableTreeNode(new PathMachinePair(file,FILE,storage_machines[0])))
+    	DefaultMutableTreeNode pm = this.get(file);
+	if ( pm != null ) {
+	    return false;
+	}
+	pm = this.get(file.parent());
+	if ( pm == null) {
+	    throw new FileNotFoundException("file not found!");
+	}
+	if (storage_machines.size() == 0 ) {
+	    throw new IllegalStateException("no available storage server");
+	}
+	
+	//TODO(lmlaaron): Need a policy to select the storage server to save the file	
+	pm.add(new DefaultMutableTreeNode(new PathMachinePair(file, FILE, storage_machines.get(0) )));
 	return true;
+   
+    
     }
 
 
@@ -305,11 +411,17 @@ public class NamingServer implements Service, Registration
     @Override
     public boolean createDirectory(Path directory) throws RMIException, FileNotFoundException
     {
-        // traverse the tree from root to the node representing the file, get the respective storage stub, use this stub to create the file on that storage server, close the stub, adding the node to the tree
-    	DefaultMutableTreeNode pm = this.get(file.parent());
-
-	//TODO(lmlaaron): currently use the first machine, need a policy	
-	pm.add(new DefaultMutableTreeNode(new PathMachinePair(file,DIRECTORY,null)))
+	DefaultMutableTreeNode pm = this.get(directory);
+	if ( pm != null ) {
+	    return false;
+	}
+	pm = this.get(directory.parent());
+	if ( pm == null) {
+	    throw new FileNotFoundException("file not found!");
+	}
+	
+	//TODO(lmlaaron): for directory the storage server is null because they do not need to be saved on storage server.	
+	pm.add(new DefaultMutableTreeNode(new PathMachinePair(directory, DIRECTORY, null)));
 	return true;
     }
 
@@ -380,7 +492,7 @@ public class NamingServer implements Service, Registration
 	    throw new FileNotFoundException("file not found");
 	}
 	PathMachinePair pmp = (PathMachinePair) pm.getUserObject();
-	return pmp.machine.client_stub;
+	return pmp.machine.get(0).client_stub;
     }
 
     // The method register is documented in Registration.java.
