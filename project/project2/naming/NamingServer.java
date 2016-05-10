@@ -182,9 +182,6 @@ public class NamingServer implements Service, Registration
    //private TreeNode<PathMachinePair> root;
    private JTree tree;
    private DefaultMutableTreeNode root;
-   // TODO(lmlaaron): adding a atomic variable implying the state of the namingserver: 
-   // START, STOP
-   // need to be atomic
 
     /** Creates the naming server object.
 
@@ -287,10 +284,10 @@ public class NamingServer implements Service, Registration
     @Override
     public void lock(Path path, boolean exclusive) throws FileNotFoundException
     {
-	// TODO(lmlaaron): change the file read(shared)/write(exclusive) counter
+	// change the file read(shared)/write(exclusive) counter
    	// the semantics requires all the files to be locked
-	// TODO(lmlaaron): lock the upward object for SHARED access
-	// TODO(lmlaaron): lock the downward objects for EXCLUSIVE acccess
+	// lock the upward object for SHARED access
+	// lock the downward objects for EXCLUSIVE acccess
 	DefaultMutableTreeNode pm = this.get(path);
 	if ( pm == null ) {
 	    throw new FileNotFoundException("file not found!");
@@ -307,17 +304,20 @@ public class NamingServer implements Service, Registration
 	    }
 	
 	    if ( pm.file_type == FILE && exclusive ) {
-	        for ( int i = 1; i < pm.machine.size(); i++ ) {
+	        for ( int i = pm.machine.size()-1; i > 0; i-- ) {
 	            if (!pm.machine.get(i).command_stub.delete(path)) {
 	    	        throw new IllegalStateException("replication cannot be deleted");
 	    	    }
+		    //TODO(lmlaaron): check this operation only unlink the reference, not 
+		    // destruct the object
+		    pm.machine.remove(i);
 	        }
 	        //throw new IllegalStateException("file is locked!");
 	    }
 
-	    //TODO(lmlaaron): replication policy here
+	    //replication policy here
 	    int random_int = randomGenerator.nextInt()%(storage_machines.size());
-	    while (pm.getUserObject().machine.contain(storage_machines.get(random_int)) ) {
+	    while (pm.getUserObject().machine.contains(storage_machines.get(random_int)) ) {
 	    	random_int = randomGenerator.nextInt();
 	    }
 	    pm.file_lock.replicate(path, this.storage_machines.get(random_int).command_stub, pm.getUserObject().machine.get(0).client_stub); 	
@@ -342,8 +342,8 @@ public class NamingServer implements Service, Registration
 	    	throw new Error("error");
 	    }
 	    
-	    //TODO(lmlaaron): for exclusive access, lock the downstream objects for exclusive access    
-	    //TODO(lmlaaron): this BFS algorithm may have performance issues, consider modifying to multithread (need to watch out for thread safety)
+	    // for exclusive access, lock the downstream objects for exclusive access    
+	    // this BFS algorithm may have performance issues, consider modifying to multithread (need to watch out for thread safety)
 	    if (exclusive) {
 	        ArrayList<DefaultMutableTreeNode> nodes_to_visit = new ArrayList<DefaultMutableTreeNode>();
 		nodes_to_visit.add(pm);
@@ -369,7 +369,7 @@ public class NamingServer implements Service, Registration
 		}
 	    }
 	} catch (Throwable t) {
-	    throw new IllegalStateException("the lock attempt being interrupted");
+	    throw t;
 	}
     }
 
@@ -423,7 +423,7 @@ public class NamingServer implements Service, Registration
 	    	throw new Error("error");
 	    }
 	    
-	    //TODO(lmlaaron): for exclusive access, lock the downstream objects for exclusive access    
+	    // for exclusive access, lock the downstream objects for exclusive access    
 	    //TODO(lmlaaron): need to improve the BFS algorithm for performance
 	    if (exclusive) {
 	        ArrayList<DefaultMutableTreeNode> nodes_to_visit = new ArrayList<DefaultMutableTreeNode>();
@@ -497,7 +497,7 @@ public class NamingServer implements Service, Registration
     @Override
     public String[] list(Path directory) throws RMIException, FileNotFoundException
     {
-	//TODO(lmlaaron): list ".", ".."
+	// list ".", ".."
 	DefaultMutableTreeNode pm = this.get(directory);
 	if ( pm == null ) {
 	    throw new FileNotFoundException("no such directory");
@@ -546,9 +546,10 @@ public class NamingServer implements Service, Registration
 	    throw new IllegalStateException("no available storage server");
 	}
 	
-	//TODO(lmlaaron): Need a policy to select the storage server to save the file	
+	//TODO(lmlaaron):Need a policy to select the storage server to save the file, currently random select	
 	try {
-	    pm.add(new DefaultMutableTreeNode(new PathMachinePair(file, FILE, storage_machines.get(0) )));
+	    int random_int = randomGenerator.nextInt()%(storage_machines.size());
+	    pm.add(new DefaultMutableTreeNode(new PathMachinePair(file, FILE, storage_machines.get(random_int) )));
 	} catch (Throwable t) {
 	    return false;
 	}
@@ -581,7 +582,7 @@ public class NamingServer implements Service, Registration
 	    throw new FileNotFoundException("file not found!");
 	}
 	
-	//TODO(lmlaaron): for directory the storage server is null because they do not need to be saved on storage server.	
+	//for directory the storage server is null because they do not need to be saved on storage server.	
 	try {
 	    pm.add(new DefaultMutableTreeNode(new PathMachinePair(directory, DIRECTORY, null)));
 	} catch (Throwable t) {
@@ -614,8 +615,9 @@ public class NamingServer implements Service, Registration
 	if (pmp.file_type == FILE ) {
 	    try {
 	    	this.get(path).removeFromParent();
-	         // TODO(lmlaaron): for multiple replications, remove all
-	         //pmp.command_stub.delete(Path path);	    
+	         // only to remove from the first server, because when acquiring exlusive locks, the replica has already been removed
+	         pmp.machine.get(0).command_stub.delete(Path path);
+		 //pmp.command_stub.delete(Path path);	    
 	    } catch (Throwable t) {
 	         return false;
 	    }
@@ -710,7 +712,7 @@ public class NamingServer implements Service, Registration
 	       if( this.get(file[i]) != null ) {
                    ret.add(file[i]);
 	       } else {
-	           //TODO(lmlaaron): for deep path, e.g., need to create the directory before create the files
+	           //for deep path, e.g., need to create the directory before create the files
 		   ArrayList<Path> parents = new ArrayList<Path>();
 		   Path parent = file[i].parent();
 		   while (this.get(parent) == null ) {
