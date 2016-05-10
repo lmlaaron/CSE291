@@ -182,6 +182,7 @@ public class NamingServer implements Service, Registration
    //private TreeNode<PathMachinePair> root;
    private JTree tree;
    private DefaultMutableTreeNode root;
+   private stopped;
 
     /** Creates the naming server object.
 
@@ -193,6 +194,7 @@ public class NamingServer implements Service, Registration
         storage_machines = new ArrayList<StorageMachine>();
 	root = new DefaultMutableTreeNode(new PathMachinePair(Path("/"), DIRECTORY,null))
 	tree = new Jtree(root);
+	stopped = true;
     }
 
     // need to write a function given a Path, return the <file, storageMachine> node on the tree
@@ -233,7 +235,7 @@ public class NamingServer implements Service, Registration
      */
     public synchronized void start() throws RMIException
     {
-        throw new UnsupportedOperationException("not implemented");
+	//throw new UnsupportedOperationException("not implemented");
     }
 
     /** Stops the naming server.
@@ -512,7 +514,7 @@ public class NamingServer implements Service, Registration
 	    ret[i] = pmp.path.toString();
 	}
 	ret[pm.getChildCount()] = ".";
-	ret[pm.getChildCount()] = "..";
+	ret[pm.getChildCount()+1] = "..";
 	return ret;
     }
 
@@ -548,8 +550,8 @@ public class NamingServer implements Service, Registration
 	
 	//TODO(lmlaaron):Need a policy to select the storage server to save the file, currently random select	
 	try {
-	    int random_int = randomGenerator.nextInt()%(storage_machines.size());
-	    pm.add(new DefaultMutableTreeNode(new PathMachinePair(file, FILE, storage_machines.get(random_int) )));
+	    int random_int = randomGenerator.nextInt()%(this.storage_machines.size());
+	    pm.add(new DefaultMutableTreeNode(new PathMachinePair(file, FILE, this.storage_machines.get(random_int) )));
 	} catch (Throwable t) {
 	    return false;
 	}
@@ -697,7 +699,7 @@ public class NamingServer implements Service, Registration
 	    throw new ApplicationFailure("cannot lock root!");
 	}
 	
-	ArrayList<String> ret = new ArrayList<>(); 
+	ArrayList<Path> ret = new ArrayList<>(); 
 	try {
 	    if ( client_stub == null || command_stub == null || files == null ) {
 	        throw new NullPointerException("null pointer");
@@ -734,7 +736,9 @@ public class NamingServer implements Service, Registration
 	    } catch (Throwable t) {
 	        throw new ApplicationFailure("cannot unlock root!");
 	    }
-            return ret;
+	    Path[] r = new Path[ret.size()];
+            r = ret.toArray(r);
+	    return r;
 	}
     }
 }
