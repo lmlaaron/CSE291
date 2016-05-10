@@ -13,8 +13,9 @@ javadoc-all
 hs_err_pid*
 
 # IDE files #
+out
 *.swp
 .idea
 .idea_tmp
-project1.iml
+*.iml
 *DS_Store
