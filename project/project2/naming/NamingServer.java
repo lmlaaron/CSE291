@@ -122,6 +122,7 @@ class FileLock {
     public boolean isSharedLocked() {
     	return (shared_lockers.intValue() > 0 );
     }
+    //TODO(lmlaaron): this lock needs to be changed, implementing queueing mechanism, in this signature, needs to always return true, otherwise block
     public synchronized boolean lock(boolean exclusive) {
 	if (exclusive) {
 	    if ( this.isSharedLocked() || this.isExclusiveLocked() ) {
@@ -140,6 +141,7 @@ class FileLock {
 	    }
 	}
     }
+    //TODO(lmlaaron): this unlock needs to be changed, implementing queueing mechanism
     public synchronized boolean unlock(boolean exclusive) {
 	if (exclusive) {
 	    if ( this.isExclusiveLocked()) {
