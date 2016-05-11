@@ -3,6 +3,8 @@ package common;
 import java.io.*;
 import java.util.*;
 
+import static java.util.Collections.unmodifiableList;
+
 /** Distributed filesystem paths.
 
     <p>
@@ -21,12 +23,12 @@ import java.util.*;
  */
 public class Path implements Iterable<String>, Comparable<Path>, Serializable
 {
-    private String path;
+    private ArrayList<String> components;
 
     /** Creates a new path which represents the root directory. */
     public Path()
     {
-        path = "/";
+        this.components = new ArrayList<>();
     }
 
     /** Creates a new path by appending the given component to an existing path.
@@ -45,14 +47,8 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
             throw new IllegalArgumentException("Component contained /");
         }
         validatePath(component);
-        if (path.getPath().endsWith("/"))
-        {
-            this.path = path.getPath() + component;
-        }
-        else
-        {
-            this.path = path.getPath() + "/" + component;
-        }
+        this.components = new ArrayList<>(path.getComponents());
+        this.components.add(component);
     }
 
     /** Creates a new path from a path string.
@@ -75,27 +71,14 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
         }
         validatePath(path);
 
-        this.path = "";
-        boolean root_component = true;
-        String[] list = path.split("/", 0);
-        /* Must be root. */
-        if (list.length == 0)
+        this.components = new ArrayList<>();
+        for (String component : path.split("/"))
         {
-            this.path = "/";
-        }
-        for (String component : list)
-        {
-            /* Skip first element as it's the root. */
-            if (root_component)
-            {
-                root_component = false;
-                continue;
-            }
             if (component.equals(""))
             {
                 continue;
             }
-            this.path += "/" + component;
+            this.components.add(component);
         }
     }
 
@@ -122,7 +105,7 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     @Override
     public Iterator<String> iterator()
     {
-        return Arrays.asList(this.path.split("/")).subList(1, this.path.split("/").length).iterator();
+        return unmodifiableList(components).iterator();
     }
 
     /** Lists the paths of all files in a directory tree on the local
@@ -180,7 +163,7 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
      */
     public boolean isRoot()
     {
-        if (path.equals("/"))
+        if (this.components.isEmpty())
         {
             return true;
         }
@@ -198,7 +181,7 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
         {
             throw new IllegalArgumentException("Root has no parent.");
         }
-        return new Path(this.path.substring(0, this.path.lastIndexOf("/")));
+        return new Path(toString().substring(0, toString().lastIndexOf("/")));
     }
 
     /** Returns the last component in the path.
@@ -213,8 +196,7 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
         {
             throw new IllegalArgumentException("Root has no last component.");
         }
-        String [] components = this.path.split("/", 0);
-        return components[components.length - 1];
+        return components.get(components.size() - 1);
     }
 
     /** Determines if the given path is a subpath of this path.
@@ -229,7 +211,7 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
      */
     public boolean isSubpath(Path other)
     {
-        return this.path.startsWith(other.getPath());
+        return toString().startsWith(other.toString());
     }
 
 
@@ -241,7 +223,7 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
      */
     public File toFile(File root)
     {
-        return (new File(this.path));
+        return (new File(toString()));
     }
 
     /** Compares this path to another.
@@ -283,11 +265,11 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     @Override
     public int compareTo(Path other)
     {
-        if (this.path.length() == other.path.length())
+        if (toString().length() == other.toString().length())
         {
-            return (this.path.compareTo(other.path));
+            return (toString().compareTo(other.toString()));
         }
-        return (this.path.length()- other.path.length());
+        return (toString().length()- other.toString().length());
     }
 
     /** Compares two paths for equality.
@@ -305,7 +287,7 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
         {
             return false;
         }
-        if (!((Path) other).getPath().equals(path))
+        if (!components.equals(((Path) other).getComponents()))
         {
             return false;
         }
@@ -317,7 +299,7 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     public int hashCode()
     {
         int result = 0;
-        result += 37 * path.hashCode();
+        result += 37 * this.components.hashCode();
         return result;
     }
 
@@ -332,11 +314,20 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     @Override
     public String toString()
     {
-        return path;
+        if (components.isEmpty())
+        {
+            return "/";
+        }
+        String toReturn = "";
+        for (String component : components)
+        {
+            toReturn += "/" + component;
+        }
+        return toReturn;
     }
 
-    public String getPath()
+    public ArrayList<String> getComponents()
     {
-        return path;
+        return components;
     }
 }
