@@ -1,5 +1,6 @@
 *.class
 javadoc-all
+javadoc
 
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
