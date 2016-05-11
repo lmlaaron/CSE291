@@ -21,10 +21,11 @@ import java.util.*;
  */
 public class Path implements Iterable<String>, Comparable<Path>, Serializable
 {
+    private Arraylist<String> components;
     /** Creates a new path which represents the root directory. */
     public Path()
     {
-        throw new UnsupportedOperationException("not implemented");
+        this.components = new ArrayList<String>();
     }
 
     /** Creates a new path by appending the given component to an existing path.
@@ -38,7 +39,13 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     */
     public Path(Path path, String component)
     {
-        throw new UnsupportedOperationException("not implemented");
+        if (component.contains("/") || component.contains(":"))
+            throw new IllegalArgumentException("the new component contains illegal character");
+        if (component.length == 0)
+            throw new IllegalArgumentException("the new component is empty");
+        
+        this.components = path.components;
+        this.components.add(component);
     }
 
     /** Creates a new path from a path string.
@@ -55,7 +62,10 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
      */
     public Path(String path)
     {
-        throw new UnsupportedOperationException("not implemented");
+        if (component.charAt(0) != '/' || component.contains(":"))
+            throw new IllegalArgumentException("illegal format for the path");
+        String[] splited = path.split("/"); 
+        this.components = new ArrayList<String>(Arrays.asList(splited));
     }
 
     /** Returns an iterator over the components of the path.
@@ -69,7 +79,7 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
     @Override
     public Iterator<String> iterator()
     {
-        throw new UnsupportedOperationException("not implemented");
+        return this.component.iterator();
     }
 
     /** Lists the paths of all files in a directory tree on the local
