@@ -38,7 +38,7 @@ public class ConformanceTests
                          conformance.rmi.StubTest.class,
                          conformance.rmi.ConnectionTest.class,
                          conformance.rmi.ThreadTest.class,
-//                         conformance.storage.RegistrationTest.class,
+                         conformance.storage.RegistrationTest.class,
 //                         conformance.storage.AccessTest.class,
 //                         conformance.storage.DirectoryTest.class,
 //                         conformance.naming.ContactTest.class,

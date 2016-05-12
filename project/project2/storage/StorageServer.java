@@ -2,10 +2,19 @@ package storage;
 
 import java.io.*;
 import java.net.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.logging.Level;
 
 import common.*;
 import rmi.*;
 import naming.*;
+
+import static javafx.scene.input.KeyCode.T;
 
 /** Storage server.
 
@@ -16,6 +25,17 @@ import naming.*;
  */
 public class StorageServer implements Storage, Command
 {
+    private static final int MAX_CONNECTION = 16;
+    private static final int CONFIG_PORT = 0;
+    ExecutorService executor;
+    private File root;
+    private int clientPort;
+    private int commandPort;
+    private ServerSocket clientSocket;
+    private ServerSocket commandSocket;
+    private Thread clientThread;
+    private Thread commandThread;
+
     /** Creates a storage server, given a directory on the local filesystem, and
         ports to use for the client and command interfaces.
 
@@ -33,7 +53,9 @@ public class StorageServer implements Storage, Command
     */
     public StorageServer(File root, int client_port, int command_port)
     {
-        throw new UnsupportedOperationException("not implemented");
+        this.root = root;
+        this.clientPort = client_port;
+        this.commandPort = command_port;
     }
 
     /** Creats a storage server, given a directory on the local filesystem.
@@ -49,7 +71,7 @@ public class StorageServer implements Storage, Command
      */
     public StorageServer(File root)
     {
-        throw new UnsupportedOperationException("not implemented");
+        this(root, 0, 0);
     }
 
     /** Starts the storage server and registers it with the given naming
@@ -75,7 +97,95 @@ public class StorageServer implements Storage, Command
     public synchronized void start(String hostname, Registration naming_server)
         throws RMIException, UnknownHostException, FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+        InetSocketAddress clientAddress = new InetSocketAddress(hostname, clientPort);
+        InetSocketAddress commandAddress = new InetSocketAddress(hostname, commandPort);
+        Path[] toDelete = naming_server.register(Stub.create(Storage.class, commandAddress),
+                Stub.create(Command.class, clientAddress),
+                Path.list(root));
+
+        try
+        {
+            this.clientSocket = new ServerSocket(clientPort, MAX_CONNECTION);
+            this.commandSocket = new ServerSocket(commandPort, MAX_CONNECTION);
+
+            if (clientPort == CONFIG_PORT)
+            {
+                clientPort = this.clientSocket.getLocalPort();
+            }
+            if (commandPort == CONFIG_PORT)
+            {
+                commandPort = this.commandSocket.getLocalPort();
+            }
+        }
+        catch (IOException e)
+        {
+            throw new RMIException("Storage server could not be started.");
+        }
+
+        if (executor == null || executor.isTerminated())
+        {
+            this.executor = Executors.newFixedThreadPool(MAX_CONNECTION);
+        }
+
+        clientThread = createThread(clientSocket);
+        clientThread.start();
+        commandThread = createThread(commandSocket);
+        commandThread.start();
+
+        registrationCleanup(toDelete);
+    }
+
+    private Thread createThread(final ServerSocket serverSocket)
+    {
+        return new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try
+                {
+                    while (true)
+                    {
+                        final Socket socket = serverSocket.accept();
+                        //ListenThread listener = new ListenThread<>(skeleton, clientSocket, serverObj, invocableMethods);
+                        //executor.execute(listener);
+                    }
+                }
+                catch (RejectedExecutionException e)
+                {
+                    //serverLog.log(Level.WARNING, "Thread tried to execute after executor terminated");
+                }
+                catch (SocketException e)
+                {
+                    stop();
+                }
+                catch (Exception e) {
+                    //serverLog.log(Level.WARNING, "Unknown Exception", e);
+                }
+            }
+        });
+    }
+
+    private synchronized void registrationCleanup(Path[] toDelete) throws FileNotFoundException
+    {
+        Path[] beforePrune = Path.list(root);
+        for (Path file : toDelete)
+        {
+            delete(file);
+        }
+        List<Path> afterPrune = Arrays.asList(Path.list(root));
+
+        for (Path toPrune : beforePrune)
+        {
+            if (afterPrune.contains(toPrune))
+            {
+                continue;
+            }
+            File directory = toPrune.toFile(root).getParentFile();
+            while (directory.listFiles().length == 0)
+            {
+                directory.delete();
+                directory = directory.getParentFile();
+            }
+        }
     }
 
     /** Stops the storage server.
@@ -85,7 +195,27 @@ public class StorageServer implements Storage, Command
      */
     public void stop()
     {
-        throw new UnsupportedOperationException("not implemented");
+        try
+        {
+            clientSocket.close();
+            commandSocket.close();
+        }
+        catch (IOException e)
+        {
+            throw new Error("Socket refused to close.");
+        }
+
+        this.executor.shutdownNow();
+        /* TODO kevin: Is this necessary? */
+        //try
+        //{
+        //    clientThread.join();
+        //    commandThread.join();
+        //}
+        //catch (InterruptedException e)
+        //{
+        //    throw new Error("Could not close threads.");
+        //}
     }
 
     /** Called when the storage server has shut down.
@@ -128,7 +258,7 @@ public class StorageServer implements Storage, Command
     @Override
     public synchronized boolean delete(Path path)
     {
-        throw new UnsupportedOperationException("not implemented");
+        return path.toFile(root).delete();
     }
 
     @Override

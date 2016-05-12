@@ -223,7 +223,7 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
      */
     public File toFile(File root)
     {
-        return (new File(toString()));
+        return (new File(root, toString()));
     }
 
     /** Compares this path to another.
