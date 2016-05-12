@@ -157,10 +157,7 @@ public class StorageServer implements Storage, Command
     public synchronized long size(Path file) throws FileNotFoundException
     {
         File f = file.toFile(root);
-        if (!f.exists() || f.isDirectory())
-        {
-            throw new FileNotFoundException(file + "does not exist.");
-        }
+        isValidFile(f);
         return f.length();
     }
 
@@ -168,14 +165,49 @@ public class StorageServer implements Storage, Command
     public synchronized byte[] read(Path file, long offset, int length)
         throws FileNotFoundException, IOException
     {
-        throw new UnsupportedOperationException("not implemented");
+        if (offset < 0)
+        {
+            throw new IndexOutOfBoundsException("Reading from negative offset.");
+        }
+        if (length < 0)
+        {
+            throw new IndexOutOfBoundsException("Trying to read negative length.");
+        }
+        File f = file.toFile(root);
+        isValidFile(f);
+        if (offset + length > f.length())
+        {
+            throw new IndexOutOfBoundsException("Reading past file size.");
+        }
+        RandomAccessFile raf = new RandomAccessFile(f, "r");
+        byte[] readBuffer = new byte[length];
+        /* TODO kevin: support long offset. */
+        raf.read(readBuffer, (int) offset, length);
+        return readBuffer;
     }
 
     @Override
     public synchronized void write(Path file, long offset, byte[] data)
         throws FileNotFoundException, IOException
     {
-        throw new UnsupportedOperationException("not implemented");
+        if (offset < 0)
+        {
+            throw new IndexOutOfBoundsException("Writing to negative offset.");
+        }
+        File f = file.toFile(root);
+        isValidFile(f);
+        RandomAccessFile raf = new RandomAccessFile(f, "rw");
+        raf.seek(offset);
+        raf.write(data);
+    }
+
+    private boolean isValidFile(File file) throws FileNotFoundException
+    {
+        if (!file.exists() || file.isDirectory())
+        {
+            throw new FileNotFoundException(file + "does not exist.");
+        }
+        return true;
     }
 
     // The following methods are documented in Command.java.
