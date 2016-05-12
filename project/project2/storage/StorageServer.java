@@ -25,16 +25,12 @@ import static javafx.scene.input.KeyCode.T;
  */
 public class StorageServer implements Storage, Command
 {
-    private static final int MAX_CONNECTION = 16;
-    private static final int CONFIG_PORT = 0;
     ExecutorService executor;
     private File root;
     private int clientPort;
     private int commandPort;
-    private ServerSocket clientSocket;
-    private ServerSocket commandSocket;
-    private Thread clientThread;
-    private Thread commandThread;
+    private Skeleton<Storage> clientSkeleton;
+    private Skeleton<Command> commandSkeleton;
 
     /** Creates a storage server, given a directory on the local filesystem, and
         ports to use for the client and command interfaces.
@@ -99,69 +95,17 @@ public class StorageServer implements Storage, Command
     {
         InetSocketAddress clientAddress = new InetSocketAddress(hostname, clientPort);
         InetSocketAddress commandAddress = new InetSocketAddress(hostname, commandPort);
-        Path[] toDelete = naming_server.register(Stub.create(Storage.class, commandAddress),
-                Stub.create(Command.class, clientAddress),
+        clientSkeleton = new Skeleton<>(Storage.class, this, clientAddress);
+        commandSkeleton = new Skeleton<>(Command.class, this, clientAddress);
+
+        clientSkeleton.start();
+        commandSkeleton.start();
+
+        Path[] toDelete = naming_server.register(Stub.create(Storage.class, clientSkeleton, hostname),
+                Stub.create(Command.class, commandSkeleton, hostname),
                 Path.list(root));
 
-        try
-        {
-            this.clientSocket = new ServerSocket(clientPort, MAX_CONNECTION);
-            this.commandSocket = new ServerSocket(commandPort, MAX_CONNECTION);
-
-            if (clientPort == CONFIG_PORT)
-            {
-                clientPort = this.clientSocket.getLocalPort();
-            }
-            if (commandPort == CONFIG_PORT)
-            {
-                commandPort = this.commandSocket.getLocalPort();
-            }
-        }
-        catch (IOException e)
-        {
-            throw new RMIException("Storage server could not be started.");
-        }
-
-        if (executor == null || executor.isTerminated())
-        {
-            this.executor = Executors.newFixedThreadPool(MAX_CONNECTION);
-        }
-
-        clientThread = createThread(clientSocket);
-        clientThread.start();
-        commandThread = createThread(commandSocket);
-        commandThread.start();
-
         registrationCleanup(toDelete);
-    }
-
-    private Thread createThread(final ServerSocket serverSocket)
-    {
-        return new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try
-                {
-                    while (true)
-                    {
-                        final Socket socket = serverSocket.accept();
-                        //ListenThread listener = new ListenThread<>(skeleton, clientSocket, serverObj, invocableMethods);
-                        //executor.execute(listener);
-                    }
-                }
-                catch (RejectedExecutionException e)
-                {
-                    //serverLog.log(Level.WARNING, "Thread tried to execute after executor terminated");
-                }
-                catch (SocketException e)
-                {
-                    stop();
-                }
-                catch (Exception e) {
-                    //serverLog.log(Level.WARNING, "Unknown Exception", e);
-                }
-            }
-        });
     }
 
     private synchronized void registrationCleanup(Path[] toDelete) throws FileNotFoundException
@@ -195,27 +139,8 @@ public class StorageServer implements Storage, Command
      */
     public void stop()
     {
-        try
-        {
-            clientSocket.close();
-            commandSocket.close();
-        }
-        catch (IOException e)
-        {
-            throw new Error("Socket refused to close.");
-        }
-
-        this.executor.shutdownNow();
-        /* TODO kevin: Is this necessary? */
-        //try
-        //{
-        //    clientThread.join();
-        //    commandThread.join();
-        //}
-        //catch (InterruptedException e)
-        //{
-        //    throw new Error("Could not close threads.");
-        //}
+        clientSkeleton.stop();
+        commandSkeleton.stop();
     }
 
     /** Called when the storage server has shut down.
@@ -231,7 +156,12 @@ public class StorageServer implements Storage, Command
     @Override
     public synchronized long size(Path file) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+        File f = file.toFile(root);
+        if (!f.exists() || f.isDirectory())
+        {
+            throw new FileNotFoundException(file + "does not exist.");
+        }
+        return f.length();
     }
 
     @Override
@@ -256,9 +186,9 @@ public class StorageServer implements Storage, Command
     }
 
     @Override
-    public synchronized boolean delete(Path path)
+    public synchronized boolean delete(Path file)
     {
-        return path.toFile(root).delete();
+        return file.toFile(root).delete();
     }
 
     @Override
