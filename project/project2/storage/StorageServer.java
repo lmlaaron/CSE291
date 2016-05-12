@@ -214,13 +214,68 @@ public class StorageServer implements Storage, Command
     @Override
     public synchronized boolean create(Path file)
     {
-        throw new UnsupportedOperationException("not implemented");
+        File f = file.toFile(root);
+        File parent = f.getParentFile();
+        if(!parent.exists())
+        {
+            boolean success =  parent.mkdirs();
+            if(!success)
+            {
+                return false;
+            }
+        }
+        try
+        {
+            return f.createNewFile();
+        }
+        catch (IOException e)
+        {
+            return false;
+        }
     }
 
     @Override
     public synchronized boolean delete(Path file)
     {
-        return file.toFile(root).delete();
+        if (file.isRoot())
+        {
+            return false;
+        }
+        File f = file.toFile(root);
+        if(f.isDirectory())
+        {
+            return deleteDirectory(f);
+        }
+        else
+        {
+            return f.delete();
+        }
+    }
+
+    /** Empties directory
+     *
+     * @param directory
+     * @return success
+     */
+    private boolean deleteDirectory(File directory)
+    {
+        boolean success = true;
+        for (File file : directory.listFiles())
+        {
+            if(file.isDirectory())
+            {
+                success = deleteDirectory(file);
+            }
+            else
+            {
+                success = file.delete();
+            }
+            if(!success)
+            {
+                return false;
+            }
+        }
+        return directory.delete();
     }
 
     @Override
