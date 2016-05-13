@@ -20,7 +20,7 @@ import javax.swing.tree.*;
 import javax.swing.*;
 import java.io.File;
 import java.util.Random;
-
+import java.net.InetSocketAddress;
 import java.util.concurrent.ThreadLocalRandom;
 /**
  * This application that requires the following additional files:
@@ -191,6 +191,11 @@ public class NamingServer implements Service, Registration
    private DefaultMutableTreeNode root;
    private boolean stopped;
 
+   private int servicePort;
+   private int registrationPort;
+   private Skeleton<Service> serviceSkeleton;
+   private Skeleton<Registration> registrationSkeleton;
+
     /** Creates the naming server object.
 
         <p>
@@ -201,7 +206,8 @@ public class NamingServer implements Service, Registration
         storage_machines = new ArrayList<StorageMachine>();
 	root = new DefaultMutableTreeNode(new PathMachinePair(new Path("/"), FileType.DIRECTORY,null));
 	tree = new JTree(root);
-	stopped = true;
+	servicePort = 6000;
+	registrationPort = 6001;
     }
 
     // need to write a function given a Path, return the <file, storageMachine> node on the tree
@@ -245,7 +251,21 @@ public class NamingServer implements Service, Registration
      */
     public synchronized void start() throws RMIException
     {
-	//throw new UnsupportedOperationException("not implemented");
+	try {
+	    //InetSocketAddress serviceAddress = new InetSocketAddress(InetAddress.getLocalHost().getHostAddress(), this.servicePort);
+            //InetSocketAddress registrationAddress = new InetSocketAddress(InetAddress.getLocalHost().getHostAddress(), this.registrationPort);
+            InetSocketAddress serviceAddress = new InetSocketAddress("localhost", this.servicePort);
+            InetSocketAddress registrationAddress = new InetSocketAddress("localhost", this.registrationPort);
+            
+	    serviceSkeleton = new Skeleton<>(Service.class, this, serviceAddress);
+            registrationSkeleton = new Skeleton<>(Registration.class, this, registrationAddress);
+
+            serviceSkeleton.start();
+            registrationSkeleton.start();
+	    //throw new UnsupportedOperationException("not implemented");
+	} catch (Throwable t) {
+	    throw new RMIException("cannot start server!");
+	}
     }
 
     /** Stops the naming server.
@@ -259,7 +279,10 @@ public class NamingServer implements Service, Registration
      */
     public void stop()
     {
-        throw new UnsupportedOperationException("not implemented");
+        serviceSkeleton.stop();
+	registrationSkeleton.stop();
+	stopped(null);
+	//throw new UnsupportedOperationException("not implemented");
     }
 
     /** Indicates that the server has completely shut down.
