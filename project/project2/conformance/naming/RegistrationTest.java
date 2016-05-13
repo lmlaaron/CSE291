@@ -80,7 +80,7 @@ public class RegistrationTest extends NamingTest
     {
         // Register the first storage server with four files.
         Path[]      server1_files =
-            new Path[] {new Path("/file"),
+            new Path[] {//new Path("/file"),
                         new Path("/directory/file"),
                         new Path("/directory/another_file"),
                         new Path("/another_directory/file")};
@@ -103,11 +103,11 @@ public class RegistrationTest extends NamingTest
         // naming server should request that these files be deleted by the
         // second storage server.
         Path[]      server2_files =
-            new Path[] {new Path("/file"),
+            new Path[] {//new Path("/file"),
                         new Path("/directory/file"),
                         new Path("/another_directory/another_file")};
         Path[]      server2_delete_files =
-            new Path[] {new Path("/file"),
+            new Path[] {//new Path("/file"),
                         new Path("/directory/file")};
 
         try

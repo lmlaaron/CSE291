@@ -755,9 +755,14 @@ public class NamingServer implements Service, Registration
     public Path[] register(Storage client_stub, Command command_stub,
                            Path[] files) throws NullPointerException, IllegalStateException, RMIException
     {
+	if ( client_stub == null || command_stub == null || files == null ) {
+	    throw new NullPointerException("null pointer!");
+	}	
+	    
+	    
 	// lock the root directory
 	try {
-	    this.lock(new Path("/"), true);    
+	    //this.lock(new Path("/"), true);    
 	} catch (Throwable t) {
 	    //throw new ApplicationFailure("cannot lock root!");
 	    //throw t;
@@ -770,14 +775,40 @@ public class NamingServer implements Service, Registration
 	    if ( client_stub == null || command_stub == null || files == null ) {
 	        throw new NullPointerException("null pointer");
 	    }
-	    if ( storage_machines.contains(new StorageMachine(command_stub, client_stub))){
- 	        throw new IllegalStateException("the storage server is registered!");
-	    }	
-            
-	    // scan and compare the storage directory tree and naming server directory tree
+	    for ( StorageMachine sm : this.storage_machines) {
+		// TODO(lmlaaron):some issues with the equals method, working around using hashcode
+		//if ( sm.command_stub == command_stub && sm.client_stub == client_stub ) 
+	    	if ( sm.command_stub.hashCode() == command_stub.hashCode() && sm.client_stub.hashCode() == client_stub.hashCode() ) {
+		    System.out.println("shot");
+		    throw new IllegalStateException("the storage server is registered!");
+		}
+	    }
+
+	} catch (Throwable t) {
+	    throw t;
+	}
+
+	try {
+    		// scan and compare the storage directory tree and naming server directory tree
 	    this.storage_machines.add(new StorageMachine(command_stub, client_stub));
+	    
+ 		System.out.println(files.length);
 	    for ( int i = 0; i < files.length; i++ ) {
-	       if( this.get(files[i]) != null ) {
+		System.out.println(files[i]);
+		
+	   	//System.out.println(files[i].parent());
+		//System.out.println(this.get(files[i].parent()));
+	    }
+    	    for ( int i = 0; i < files.length; i++ ) {
+		//System.out.println(files[i]);
+		
+	   	System.out.println(files[i].parent());
+		System.out.println(this.get(files[i].parent()));
+	    }
+    
+
+	    for ( int i = 0; i < files.length; i++ ) {
+		if( this.get(files[i]) != null ) {
                    ret.add(files[i]);
 	       } else {
 	           //for deep path, e.g., need to create the directory before create the files
@@ -796,14 +827,14 @@ public class NamingServer implements Service, Registration
 	} catch (Throwable t) {
 	    throw t;
 	} finally {
-	    // unlock the root directory
+	     //unlock the root directory
 	    try {
-	        this.unlock(new Path("/"), true);    
+	        //this.unlock(new Path("/"), true);    
 	    } catch (Throwable t) {
 	        //throw new ApplicationFailure("cannot unlock root!");
 	    	//TODO(lmlaaron): according to description, the lock exception is not allowed, there should be a locking queue, thus should not throw exception
 	    	throw new IllegalStateException("!");
-		//throw t;
+	        //throw t;
 	    }
 	    Path[] r = new Path[ret.size()];
             r = ret.toArray(r);
