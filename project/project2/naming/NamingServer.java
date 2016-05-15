@@ -582,8 +582,8 @@ public class NamingServer implements Service, Registration
 	}
 	//ret[pm.getChildCount()] = ".";
 	//ret[pm.getChildCount()+1] = "..";
-        for ( String list : ret )
-            System.out.println(list);
+        //for ( String list : ret )
+        //    System.out.println(list);
 	return ret;
     }
 
@@ -609,10 +609,21 @@ public class NamingServer implements Service, Registration
 	if ( pm != null ) {
 	    return false;
 	}
-	pm = this.get(file.parent());
-	if ( pm == null) {
-	    throw new FileNotFoundException("file not found!");
-	}
+
+        String[] cpath = file.toString().split("/");
+        String cpath_cat = "";
+        for (int i = 0; i < cpath.length-1; i++) { // exclude the directory to be created
+            cpath_cat = cpath_cat + "/" + cpath[i];
+	    pm = this.get(new Path(cpath_cat));
+            if ( pm == null || !this.isDirectory(new Path(cpath_cat)) ) {
+	        throw new FileNotFoundException("file not found!");
+	    }
+        }
+
+	//pm = this.get(file.parent());
+	//if ( pm == null) {
+	//    throw new FileNotFoundException("file not found!");
+	//}
 	if (storage_machines.size() == 0 ) {
 	    throw new IllegalStateException("no available storage server");
 	}
@@ -621,8 +632,10 @@ public class NamingServer implements Service, Registration
 	try {
 	    Random randomGenerator = new Random();
 	    int random_int = randomGenerator.nextInt()%(this.storage_machines.size());
+            // when called by register, where is the file?
 	    pm.add(new DefaultMutableTreeNode(new PathMachinePair(file, FileType.FILE, this.storage_machines.get(random_int) )));
 	} catch (Throwable t) {
+            //this.storage_machines.get(random_int).command_stub.create(file); 
 	    return false;
 	}
 	return true;
@@ -649,10 +662,15 @@ public class NamingServer implements Service, Registration
 	if ( pm != null ) {
 	    return false;
 	}
-	pm = this.get(directory.parent());
-	if ( pm == null) {
-	    throw new FileNotFoundException("file not found!");
-	}
+        String[] cpath = directory.toString().split("/");
+        String cpath_cat = "";
+        for (int i = 0; i < cpath.length-1; i++) { // exclude the directory to be created
+            cpath_cat = cpath_cat + "/" + cpath[i];
+	    pm = this.get(new Path(cpath_cat));
+            if ( pm == null || !this.isDirectory(new Path(cpath_cat)) ) {
+	        throw new FileNotFoundException("file not found!");
+	    }
+        }
 	
 	//for directory the storage server is null because they do not need to be saved on storage server.	
 	try {
@@ -731,7 +749,7 @@ public class NamingServer implements Service, Registration
     public Storage getStorage(Path file) throws RMIException, FileNotFoundException
     {
 	DefaultMutableTreeNode pm = this.get(file);
-	if ( pm == null ) {
+	if ( pm == null || this.isDirectory(file)) {
 	    throw new FileNotFoundException("file not found");
 	}
 	PathMachinePair pmp = (PathMachinePair) pm.getUserObject();
@@ -821,32 +839,55 @@ public class NamingServer implements Service, Registration
 	    for ( int i = 0; i < files.length; i++ ) {
 		//if( this.get(files[i]) != null && pm.file_type == FileType.FILE) {
 		if( this.get(files[i]) != null && !files[i].isRoot()) {
-                   //System.out.println(files[i]);
-                   ret.add(files[i]);
+                    //System.out.println(files[i]);
+                    ret.add(files[i]);
 	        } else {
-                   //System.out.println("***************");
-		   //System.out.println(files[i]);
-                   //System.out.println("***************");
-	           //for deep path, e.g., need to create the directory before create the files
-		   ArrayList<Path> parents = new ArrayList<Path>();
-		   Path parent = files[i].parent();
-                   //System.out.println(parent);
-		   while (this.get(parent) == null && !parent.isRoot()) {
-            //       System.out.println(parent);
-		       parents.add(parent);	
-//                   System.out.println("HAHA");
-		       parent = parent.parent();
-		   }
-		   for ( int j = parents.size() - 1; j >= 0; j-- ) {
-                       //System.out.println(parents.get(j));
-		       this.createDirectory(parents.get(j));		
-		       //System.out.println("Directory " + parents.get(j).toString() + " created.");
-		   }
-		   this.createFile(files[i]);
+                    //System.out.println("***************");
+		    //System.out.println(files[i]);
+                    //System.out.println("***************");
+	            //for deep path, e.g., need to create the directory before create the files
+		    ArrayList<Path> parents = new ArrayList<Path>();
+		    Path parent = files[i].parent();
+                    //System.out.println(parent);
+		    while (this.get(parent) == null && !parent.isRoot()) {
+            //        System.out.println(parent);
+		        parents.add(parent);	
+//                    System.out.println("HAHA");
+		        parent = parent.parent();
+		    }
+		    for ( int j = parents.size() - 1; j >= 0; j-- ) {
+                        //System.out.println(parents.get(j));
+		        this.createDirectory(parents.get(j));		
+		        //System.out.println("Directory " + parents.get(j).toString() + " created.");
+		    }
+		    //this.createFile(files[i]);
+		    //migrate
+    	            DefaultMutableTreeNode pm = this.get(files[i]);
+	            if ( pm != null ) {
+			continue;
+	            }
+
+                    String[] cpath = files[i].toString().split("/");
+                    String cpath_cat = "";
+                    for (int j = 0; j < cpath.length-1; j++) { // exclude the directory to be created
+                        cpath_cat = cpath_cat + "/" + cpath[j];
+	                pm = this.get(new Path(cpath_cat));
+                        if ( pm == null || !this.isDirectory(new Path(cpath_cat)) ) {
+	                    throw new FileNotFoundException("file not found!");
+	                }
+                    }
+
+                    if (storage_machines.size() == 0 ) {
+	                throw new IllegalStateException("no available storage server");
+	            }
+	
+            //this.storage_machines.get(random_int).command_stub.create(file); 
+                   //command_stub.delete(files[i]);
 		   //System.out.println("File " + files[i].toString() + " created.");
                    //System.out.println("================");
-                } 
-	    }
+	            pm.add(new DefaultMutableTreeNode(new PathMachinePair(files[i], FileType.FILE, new StorageMachine(command_stub, client_stub))));
+	        }
+            }
 	} catch (Throwable t) {
             //System.out.println(t.getClass().getName());
 	    throw t;
