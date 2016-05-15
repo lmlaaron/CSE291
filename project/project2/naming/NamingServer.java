@@ -630,12 +630,12 @@ public class NamingServer implements Service, Registration
 	
 	//TODO(lmlaaron):Need a policy to select the storage server to save the file, currently random select	
 	try {
+            // when called by register, where is the file?
 	    Random randomGenerator = new Random();
 	    int random_int = randomGenerator.nextInt()%(this.storage_machines.size());
-            // when called by register, where is the file?
 	    pm.add(new DefaultMutableTreeNode(new PathMachinePair(file, FileType.FILE, this.storage_machines.get(random_int) )));
+            this.storage_machines.get(random_int).command_stub.create(file); 
 	} catch (Throwable t) {
-            //this.storage_machines.get(random_int).command_stub.create(file); 
 	    return false;
 	}
 	return true;
