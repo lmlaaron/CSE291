@@ -201,11 +201,17 @@ public class StorageServer implements Storage, Command
         raf.write(data);
     }
 
+    /** Private validation of file for reading or writing
+     *
+     * @param file
+     * @return
+     * @throws FileNotFoundException If file does not exist or file is directory.
+     */
     private boolean isValidFile(File file) throws FileNotFoundException
     {
         if (!file.exists() || file.isDirectory())
         {
-            throw new FileNotFoundException(file + "does not exist.");
+            throw new FileNotFoundException(file + " does not exist.");
         }
         return true;
     }
@@ -216,7 +222,7 @@ public class StorageServer implements Storage, Command
     {
         File f = file.toFile(root);
         File parent = f.getParentFile();
-        if(!parent.exists())
+        if (!parent.exists())
         {
             boolean success =  parent.mkdirs();
             if(!success)
@@ -226,6 +232,7 @@ public class StorageServer implements Storage, Command
         }
         try
         {
+            /* Note: Returns false if file already existed. */
             return f.createNewFile();
         }
         catch (IOException e)
@@ -242,7 +249,11 @@ public class StorageServer implements Storage, Command
             return false;
         }
         File f = file.toFile(root);
-        if(f.isDirectory())
+        if (!f.exists())
+        {
+            return false;
+        }
+        if (f.isDirectory())
         {
             return deleteDirectory(f);
         }
@@ -252,14 +263,14 @@ public class StorageServer implements Storage, Command
         }
     }
 
-    /** Empties directory
+    /** Recursive deletion of directory
      *
      * @param directory
      * @return success
      */
     private boolean deleteDirectory(File directory)
     {
-        boolean success = true;
+        boolean success;
         for (File file : directory.listFiles())
         {
             if(file.isDirectory())
@@ -282,6 +293,42 @@ public class StorageServer implements Storage, Command
     public synchronized boolean copy(Path file, Storage server)
         throws RMIException, FileNotFoundException, IOException
     {
-        throw new UnsupportedOperationException("not implemented");
+        /* Throws FileNotFoundException if file didn't exist or is directory
+         * in the other server. */
+        long file_size = server.size(file);
+        boolean success = create(file);
+        /* File already existed, empty it first. */
+        if (!success)
+        {
+            emptyFile(file);
+        }
+
+        int cur_offset = 0;
+        while(cur_offset < file_size)
+        {
+            int toRead;
+            if (file_size - cur_offset > Integer.MAX_VALUE)
+            {
+                toRead = Integer.MAX_VALUE;
+            }
+            else
+            {
+                toRead = (int) file_size - cur_offset;
+            }
+            byte[] data = server.read(file, cur_offset, toRead);
+            write(file, cur_offset, data);
+            cur_offset += toRead;
+        }
+        return true;
+    }
+
+    private void emptyFile(Path file) throws IOException
+    {
+        FileWriter fw = new FileWriter(file.toFile(root), false);
+        PrintWriter pw = new PrintWriter(fw, false);
+        pw.flush();
+        pw.close();
+        fw.close();
     }
 }
+

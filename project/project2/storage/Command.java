@@ -47,9 +47,9 @@ public interface Command
 
     /** Copies a file from another storage server.
 
-        @param file Path to the file to be copied.
+        @param file Path to the file to be deleted.
         @param server Storage server from which the file is to be downloaded.
-        @return <code>true</code> if the file is successfully copied;
+        @return <code>true</code> if the file is successfully deleted;
                 <code>false</code> otherwise.
         @throws FileNotFoundException If the file is not present on the remote
                                       storage server, or the path refers to a
