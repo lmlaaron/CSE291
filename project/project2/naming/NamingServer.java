@@ -212,6 +212,9 @@ public class NamingServer implements Service, Registration
 
     // need to write a function given a Path, return the <file, storageMachine> node on the tree
     private DefaultMutableTreeNode get(Path file) {
+        //System.out.println("HAHAHA");
+        //System.out.println(file);
+        //System.out.println("HAHA");
         Iterator itr = file.iterator();
         String cpath = "";
         //DefaultMutableTreeNode<PathMachinePair> ctr = this.root;
@@ -219,12 +222,17 @@ public class NamingServer implements Service, Registration
         
         // traverse the tree from root to the node representing the file, return the respective machine stub
         while (itr.hasNext()) {
-            cpath = cpath + itr.next();	    
+            cpath = cpath + "/" + itr.next();
+            //System.out.println(cpath);
             int i;
 	    for ( i = 0; i < ctr.getChildCount(); i++ ) {
 		DefaultMutableTreeNode pm_child = (DefaultMutableTreeNode) ctr.getChildAt(i);
             	PathMachinePair child = (PathMachinePair) pm_child.getUserObject();
-		if (child.path == new Path(cpath)) {
+                //System.out.println("HAHA");
+                //System.out.println(child.path);
+                //System.out.println("HAHAHA");
+                Path cpath_obj = new Path(cpath);
+		if (child.path.equals(cpath_obj)) {
         	    break;
         	}
             }
@@ -779,7 +787,7 @@ public class NamingServer implements Service, Registration
 		// TODO(lmlaaron):some issues with the equals method, working around using hashcode
 		//if ( sm.command_stub == command_stub && sm.client_stub == client_stub ) 
 	    	if ( sm.command_stub.hashCode() == command_stub.hashCode() && sm.client_stub.hashCode() == client_stub.hashCode() ) {
-		    System.out.println("shot");
+		    //System.out.println("shot");
 		    throw new IllegalStateException("the storage server is registered!");
 		}
 	    }
@@ -791,40 +799,53 @@ public class NamingServer implements Service, Registration
 	try {
     		// scan and compare the storage directory tree and naming server directory tree
 	    this.storage_machines.add(new StorageMachine(command_stub, client_stub));
-	    
- 		System.out.println(files.length);
-	    for ( int i = 0; i < files.length; i++ ) {
-		System.out.println(files[i]);
+ 		//System.out.println(files.length);
+	    //for ( int i = 0; i < files.length; i++ ) {
+	//	System.out.println(files[i]);
 		
 	   	//System.out.println(files[i].parent());
 		//System.out.println(this.get(files[i].parent()));
-	    }
+	  //  }
+    /*
     	    for ( int i = 0; i < files.length; i++ ) {
 		//System.out.println(files[i]);
 		
 	   	System.out.println(files[i].parent());
 		System.out.println(this.get(files[i].parent()));
 	    }
-    
+    */
 
 	    for ( int i = 0; i < files.length; i++ ) {
-		if( this.get(files[i]) != null ) {
+		//if( this.get(files[i]) != null && pm.file_type == FileType.FILE) {
+		if( this.get(files[i]) != null && !files[i].isRoot()) {
+                   //System.out.println(files[i]);
                    ret.add(files[i]);
-	       } else {
+	        } else {
+                   //System.out.println("***************");
+		   //System.out.println(files[i]);
+                   //System.out.println("***************");
 	           //for deep path, e.g., need to create the directory before create the files
 		   ArrayList<Path> parents = new ArrayList<Path>();
 		   Path parent = files[i].parent();
-		   while (this.get(parent) == null ) {
+                   //System.out.println(parent);
+		   while (this.get(parent) == null && !parent.isRoot()) {
+            //       System.out.println(parent);
 		       parents.add(parent);	
+//                   System.out.println("HAHA");
 		       parent = parent.parent();
 		   }
 		   for ( int j = parents.size() - 1; j >= 0; j-- ) {
+                       //System.out.println(parents.get(j));
 		       this.createDirectory(parents.get(j));		
+		       //System.out.println("Directory " + parents.get(j).toString() + " created.");
 		   }
 		   this.createFile(files[i]);
-	       } 
+		   //System.out.println("File " + files[i].toString() + " created.");
+                   //System.out.println("================");
+                } 
 	    }
 	} catch (Throwable t) {
+            //System.out.println(t.getClass().getName());
 	    throw t;
 	} finally {
 	     //unlock the root directory
@@ -838,6 +859,8 @@ public class NamingServer implements Service, Registration
 	    }
 	    Path[] r = new Path[ret.size()];
             r = ret.toArray(r);
+            //for (Path p : r)
+            //    System.out.println(p);
 	    return r;
 	}
     }

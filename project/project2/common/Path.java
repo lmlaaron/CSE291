@@ -181,7 +181,13 @@ public class Path implements Iterable<String>, Comparable<Path>, Serializable
         {
             throw new IllegalArgumentException("Root has no parent.");
         }
-        return new Path(toString().substring(0, toString().lastIndexOf("/")));
+        String parent = toString().substring(0, toString().lastIndexOf("/"));
+        if (parent.length() == 0) 
+        {
+            parent = "/";
+        }
+        //return new Path(toString().substring(0, toString().lastIndexOf("/")));
+        return new Path(parent);
     }
 
     /** Returns the last component in the path.
