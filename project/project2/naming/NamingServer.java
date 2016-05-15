@@ -573,14 +573,17 @@ public class NamingServer implements Service, Registration
 	    throw new FileNotFoundException("no such directory");
 	}
 
-	String[] ret = new String[pm.getChildCount()+2];
+	//String[] ret = new String[pm.getChildCount()+2];
+	String[] ret = new String[pm.getChildCount()];
 	for ( int i = 0; i < pm.getChildCount(); i++ ) {
 	    DefaultMutableTreeNode pm_child = (DefaultMutableTreeNode) pm.getChildAt(i);	
 	    PathMachinePair pmp_child = (PathMachinePair) pm_child.getUserObject();
-	    ret[i] = pmp_child.path.toString();
+	    ret[i] = pmp_child.path.toString().substring(pmp_child.path.toString().lastIndexOf("/")+1, pmp_child.path.toString().length());
 	}
-	ret[pm.getChildCount()] = ".";
-	ret[pm.getChildCount()+1] = "..";
+	//ret[pm.getChildCount()] = ".";
+	//ret[pm.getChildCount()+1] = "..";
+        for ( String list : ret )
+            System.out.println(list);
 	return ret;
     }
 
