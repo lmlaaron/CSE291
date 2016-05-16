@@ -22,6 +22,9 @@ import java.io.File;
 import java.util.Random;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
 /**
  * This application that requires the following additional files:
  *   TreeDemoHelp.html
@@ -52,6 +55,14 @@ import javax.swing.event.TreeSelectionListener;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+
+import java.sql.Timestamp;
+import java.util.UUID;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+
 
 /** Naming server.
 
@@ -116,14 +127,22 @@ class FileLock {
     // -1 means exclusive locked, +n neans shared by n locks, 0 means unlocked
     private AtomicInteger shared_lockers;
     private AtomicInteger access_counter;
-    public boolean isExclusiveLocked() {
+    private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+    private final Lock readLock = readWriteLock.readLock();
+    private final Lock writeLock = readWriteLock.writeLock();
+    public synchronized boolean isExclusiveLocked() {
     	return (shared_lockers.intValue() == -1 );
     }
-    public boolean isSharedLocked() {
+    public synchronized boolean isSharedLocked() {
     	return (shared_lockers.intValue() > 0 );
+    }
+    public synchronized boolean isUnLocked() {
+        return (shared_lockers.intValue() == 0 );
     }
     //TODO(lmlaaron): this lock needs to be changed, implementing queueing mechanism, in this signature, needs to always return true, otherwise block
     public synchronized boolean lock(boolean exclusive) {
+        writeLock.lock();
+        try {
 	if (exclusive) {
 	    if ( this.isSharedLocked() || this.isExclusiveLocked() ) {
 	        return false;
@@ -140,9 +159,14 @@ class FileLock {
 	    	return true;
 	    }
 	}
+        } finally {
+            writeLock.unlock();
+        }
     }
     //TODO(lmlaaron): this unlock needs to be changed, implementing queueing mechanism
     public synchronized boolean unlock(boolean exclusive) {
+        writeLock.lock();
+        try {
 	if (exclusive) {
 	    if ( this.isExclusiveLocked()) {
 	        this.shared_lockers.set(0);
@@ -162,6 +186,9 @@ class FileLock {
 		return false;
 	    }
 	}
+        } finally {
+            writeLock.unlock();
+        }
     }
     public synchronized void replicate(Path path, Storage server, Command command_stub) throws RMIException {
         if ( access_counter.intValue() == 20 ) {
@@ -179,6 +206,28 @@ class FileLock {
     } 
 }
 
+class LockRequest {
+    public Path path;
+    public boolean exclusive;
+    public int threadid;
+
+    LockRequest() {
+        this.path = new Path();
+        this.exclusive = true;
+        this.threadid = -1;
+    }
+
+    LockRequest(Path path_, boolean exclusive_, int threadid_) {
+        this.path = path_;
+        this.exclusive = exclusive_;
+        this.threadid = threadid_;
+    }
+ 
+    Path getPath() {
+        return this.path;
+    }
+}
+
 public class NamingServer implements Service, Registration
 {
     // register all the storage server
@@ -187,14 +236,23 @@ public class NamingServer implements Service, Registration
    // a tree structure to remember all the <file, storageMachine>
    // the structure of the tree resembles the file system tree (at least at the top level)
    //private TreeNode<PathMachinePair> root;
-   private JTree tree;
-   private DefaultMutableTreeNode root;
-   private boolean stopped;
+    private JTree tree;
+    private DefaultMutableTreeNode root;
+    private volatile boolean stopped;
 
-   private int servicePort;
-   private int registrationPort;
-   private Skeleton<Service> serviceSkeleton;
-   private Skeleton<Registration> registrationSkeleton;
+    private int servicePort;
+    private int registrationPort;
+    private Skeleton<Service> serviceSkeleton;
+    private Skeleton<Registration> registrationSkeleton;
+   
+    private static LinkedBlockingQueue<LockRequest> lock_queue;
+    private static Map<Integer, Exception> exception_table;
+    private static Map<Integer, Boolean> finishing_table;
+    private volatile boolean locking;
+    private volatile boolean queueing;
+    private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+    private final Lock readLock = readWriteLock.readLock();
+    private final Lock writeLock = readWriteLock.writeLock();
 
     /** Creates the naming server object.
 
@@ -208,6 +266,13 @@ public class NamingServer implements Service, Registration
 	tree = new JTree(root);
 	servicePort = 6000;
 	registrationPort = 6001;
+   
+        lock_queue = new LinkedBlockingQueue<LockRequest>();
+        exception_table = Collections.synchronizedMap(new HashMap<Integer, Exception>());
+        finishing_table = Collections.synchronizedMap(new HashMap<Integer, Boolean>());
+        locking = false;
+        stopped = true;
+        queueing = false;
     }
 
     // need to write a function given a Path, return the <file, storageMachine> node on the tree
@@ -221,13 +286,17 @@ public class NamingServer implements Service, Registration
         DefaultMutableTreeNode ctr = this.root;
         
         // traverse the tree from root to the node representing the file, return the respective machine stub
+        int j = 0;
         while (itr.hasNext()) {
+            //System.out.print(j);
+            //System.out.print("===>");
+            //j++;
             cpath = cpath + "/" + itr.next();
-            //System.out.println(cpath);
             int i;
 	    for ( i = 0; i < ctr.getChildCount(); i++ ) {
 		DefaultMutableTreeNode pm_child = (DefaultMutableTreeNode) ctr.getChildAt(i);
             	PathMachinePair child = (PathMachinePair) pm_child.getUserObject();
+                //System.out.println(child.path);
                 //System.out.println("HAHA");
                 //System.out.println(child.path);
                 //System.out.println("HAHAHA");
@@ -271,9 +340,12 @@ public class NamingServer implements Service, Registration
             serviceSkeleton.start();
             registrationSkeleton.start();
 	    //throw new UnsupportedOperationException("not implemented");
+            this.stopped = false;
 	} catch (Throwable t) {
 	    throw new RMIException("cannot start server!");
 	}
+        Thread t = new Thread(new Scheduler());
+        t.start();
     }
 
     /** Stops the naming server.
@@ -330,25 +402,99 @@ public class NamingServer implements Service, Registration
                              is waiting to obtain the lock.
      */ 
     @Override
-    public void lock(Path path, boolean exclusive) throws FileNotFoundException, RMIException
+    public void lock(Path path, boolean exclusive) throws FileNotFoundException, RMIException, NullPointerException
     {
+        if (path == null) {
+            throw new NullPointerException("path is null");
+        }
+	DefaultMutableTreeNode pm = this.get(path);
+        if (pm == null) {
+            throw new FileNotFoundException("null pointer");
+        }
+ 
+        
+	// moved to unit_lock()
+        // just add the request to the queue here
+        //Timestamp ts = new Timestamp(System.currentTimeMillis());
+        //int tid = ts.hashCode();
+        int tid = UUID.randomUUID().hashCode();
+        Thread thread = new Thread(new AddRequest(path, exclusive, tid));
+        thread.start();
+        //System.out.println(this.finishing_table.get(tid) == null );
+        //synchronized(this) {
+        while (this.finishing_table.get(tid) == null || (!this.finishing_table.get(tid))) {
+            //System.out.println(this.finishing_table.get(tid)); 
+        //System.out.println(this.lock_queue.size());
+                //try {
+                //    wait();
+                //} catch (InterruptedException e) {
+                //}
+            //}
+        }
+        //System.out.println(this.finishing_table.get(tid) == null );
+        //readLock.lock();
+        try {
+            if (exception_table.get(tid) != null) {
+                Exception e = exception_table.get(tid);
+                //this.finishing_table.remove(tid);
+                //this.exception_table.remove(tid);
+                throw e;
+            }
+        } catch (FileNotFoundException ex1) {
+           throw ex1;
+        } catch (RMIException ex2) {
+            throw ex2;
+        } catch (Exception ex) {}
+        //finally {
+        //    readLock.unlock();
+        //}
+        //this.finishing_table.remove(tid);
+    }
+
+    private synchronized void locking(Path path, boolean exclusive, int tid) {
+        //try and add to exception table
+        this.locking = true;
+        try {
+            unit_lock (path, exclusive);
+        } catch (Exception e) {
+            this.exception_table.put(tid, e);
+        }
+        this.finishing_table.put(tid, true);
+        this.locking = false;
+    }
+
+    private synchronized void unit_lock(Path path, boolean exclusive) throws FileNotFoundException, IllegalStateException, RMIException, NullPointerException{
 	// change the file read(shared)/write(exclusive) counter
    	// the semantics requires all the files to be locked
 	// lock the upward object for SHARED access
 	// lock the downward objects for EXCLUSIVE acccess
+  
+        // use multithread, one thread notify the queued request 
+        // to continue on its finishing
+        //this.locking = true;
+        if ( path == null ) {
+            throw new NullPointerException("path is null");
+        }
 	DefaultMutableTreeNode pm = this.get(path);
+        //System.out.println(path);
+	//PathMachinePair pmpp = (PathMachinePair) pm.getUserObject();
+        //System.out.println(pmpp.path);
 	if ( pm == null ) {
+            //this.locking = false;
 	    throw new FileNotFoundException("file not found!");
 	}
 	
 	if ( this.isClosed()) {
+            //this.locking = false;
 	    throw new IllegalStateException("file is locked");
 	}
 	
 	try {
 	    PathMachinePair pmp = (PathMachinePair) pm.getUserObject();
+            //System.out.println(path);
 	    if (!pmp.file_lock.lock(exclusive)) {
 	        //return;
+                //this.locking = false;
 		throw new Error("error");
 	    }
 	
@@ -365,12 +511,12 @@ public class NamingServer implements Service, Registration
 	    }
 
 	    //replication policy here
-	    Random randomGenerator = new Random();
-	    int random_int = randomGenerator.nextInt()%(storage_machines.size());
-	    while (pmp.machine.contains(storage_machines.get(random_int)) ) {
-	    	random_int = randomGenerator.nextInt();
-	    }
-	    pmp.file_lock.replicate(path,  pmp.machine.get(0).client_stub, this.storage_machines.get(random_int).command_stub); 	
+	    //Random randomGenerator = new Random();
+	    //int random_int = randomGenerator.nextInt()%(storage_machines.size());
+	    //while (pmp.machine.contains(storage_machines.get(random_int)) ) {
+	    //	random_int = randomGenerator.nextInt();
+	    //}
+	    //pmp.file_lock.replicate(path,  pmp.machine.get(0).client_stub, this.storage_machines.get(random_int).command_stub);
 	    ArrayList<DefaultMutableTreeNode> parents = new ArrayList<DefaultMutableTreeNode>();
 	    DefaultMutableTreeNode parent = (DefaultMutableTreeNode) pm.getParent();
 	    boolean success = true;
@@ -383,6 +529,8 @@ public class NamingServer implements Service, Registration
 	        parents.add(parent);
 	        parent = (DefaultMutableTreeNode) parent.getParent();
 	    }
+            //System.out.println(pmp.file_lock.isExclusiveLocked());
+            //System.out.println(success);
 
 	    // lock from current object upward, if failed at some point undo all the lock
 	    if ( success == false ) {
@@ -392,6 +540,7 @@ public class NamingServer implements Service, Registration
 		    parent_pmp.file_lock.unlock(false);
 	        }
 	        //return;
+                //this.locking = false;
 	    	throw new Error("error");
 	    }
 	    
@@ -404,7 +553,9 @@ public class NamingServer implements Service, Registration
 		while (cursor < nodes_to_visit.size()) {
 		    DefaultMutableTreeNode currentnode = nodes_to_visit.get(cursor);
 		    PathMachinePair current_pm = (PathMachinePair) currentnode.getUserObject();
-	    	    if (!current_pm.file_lock.lock(true)) {
+                    //System.out.println(current_pm.path);
+                    //System.out.println(current_pm.file_lock.isExclusiveLocked());
+	    	    if (!current_pm.path.equals(pmp.path) && !current_pm.file_lock.lock(exclusive)) {
 		        success = false;
 			break;
 		    }
@@ -422,13 +573,20 @@ public class NamingServer implements Service, Registration
 			pmp_parent.file_lock.unlock(true);
 	            }
 	            //return;
+                    //this.locking = false;
 		    throw new Error("error");
 		}
 	    }
+            //System.out.println(pmp.file_lock.isSharedLocked());
 	} catch (Throwable t) {
+            //this.locking = false;
 	    throw t;
 	}
+        //this.locking = false;
+        
     }
+
+
 
     /** Unlocks a file or directory.
         @param path The file or directory to be unlocked.
@@ -446,17 +604,23 @@ public class NamingServer implements Service, Registration
      */
     @Override
     public void unlock(Path path, boolean exclusive)
+        throws IllegalArgumentException, RMIException, NullPointerException
     {
        	// the semantics requires all the files alone the path to be locked
 	// TODO(lmlaaron): locker queue?
+	if ( path == null ) {
+	    throw new NullPointerException("path is null");
+	}
 	DefaultMutableTreeNode pm = this.get(path);
 	if ( pm == null ) {
-	    throw new IllegalStateException("illegal state");
+	    throw new IllegalArgumentException("illegal state");
 	}
 
 	try {
 	    PathMachinePair pmp = (PathMachinePair) pm.getUserObject();
+            //System.out.println();
 	    if (!pmp.file_lock.unlock(exclusive)) {
+                //System.out.print("HAHAHAHA");
 	        //return;
 		throw new Error("error");
 	    }
@@ -486,15 +650,25 @@ public class NamingServer implements Service, Registration
 	    
 	    // for exclusive access, lock the downstream objects for exclusive access    
 	    //TODO(lmlaaron): need to improve the BFS algorithm for performance
+            //System.out.println("HAHAHAHAHAHA");
 	    if (exclusive) {
 	        ArrayList<DefaultMutableTreeNode> nodes_to_visit = new ArrayList<DefaultMutableTreeNode>();
 		nodes_to_visit.add(pm);
 		int cursor = 0;	
+                /*System.out.println(pm.getChildCount());
+                PathMachinePair pmpp = (PathMachinePair) pm.getUserObject();
+                System.out.println(pmpp.path);
+                if (pm.getChildCount() != 0) {
+                    DefaultMutableTreeNode c = (DefaultMutableTreeNode) pm.getChildAt(0);
+                    PathMachinePair cpmp = (PathMachinePair)c.getUserObject();
+                    System.out.println(cpmp.path);
+                }*/
 		
-		DefaultMutableTreeNode currentnode = nodes_to_visit.get(cursor);
+		//DefaultMutableTreeNode currentnode = nodes_to_visit.get(cursor);
 		while (cursor < nodes_to_visit.size()) {
+		    DefaultMutableTreeNode currentnode = nodes_to_visit.get(cursor);
 		    PathMachinePair current_pm = (PathMachinePair) currentnode.getUserObject();
-		    if (!current_pm.file_lock.unlock(true)) {
+		    if (!current_pm.path.equals(pmp.path) && !current_pm.file_lock.unlock(exclusive) ) {
 		        success = false;
 			break;
 		    }
@@ -515,7 +689,8 @@ public class NamingServer implements Service, Registration
 		}
 	    }
 	} catch (Throwable t) {
-	    throw new IllegalStateException("the lock attempt being interrupted");
+	    	throw t;
+		//throw new IllegalStateException("the lock attempt being interrupted");
 	}
     }
 
@@ -662,19 +837,29 @@ public class NamingServer implements Service, Registration
 	if ( pm != null ) {
 	    return false;
 	}
+        /*if ( directory.parent().isRoot() ) {
+            pm = this.get(directory.parent());
+            try {
+                pm.add(new DefaultMutableTreeNode(new PathMachinePair(directory, FileType.DIRECTORY, null)));
+            } catch ( Throwable t ) {
+                return false;
+            }
+            return true;
+        }*/
         String[] cpath = directory.toString().split("/");
         String cpath_cat = "";
+        DefaultMutableTreeNode pm1 = this.get(new Path("/"));
         for (int i = 0; i < cpath.length-1; i++) { // exclude the directory to be created
             cpath_cat = cpath_cat + "/" + cpath[i];
-	    pm = this.get(new Path(cpath_cat));
-            if ( pm == null || !this.isDirectory(new Path(cpath_cat)) ) {
+	    pm1 = this.get(new Path(cpath_cat));
+            if ( pm1 == null || !this.isDirectory(new Path(cpath_cat)) ) {
 	        throw new FileNotFoundException("file not found!");
 	    }
         }
 	
 	//for directory the storage server is null because they do not need to be saved on storage server.	
 	try {
-	    pm.add(new DefaultMutableTreeNode(new PathMachinePair(directory, FileType.DIRECTORY, null)));
+	    pm1.add(new DefaultMutableTreeNode(new PathMachinePair(directory, FileType.DIRECTORY, null)));
 	} catch (Throwable t) {
 	    return false;
 	}
@@ -846,10 +1031,15 @@ public class NamingServer implements Service, Registration
 		    //System.out.println(files[i]);
                     //System.out.println("***************");
 	            //for deep path, e.g., need to create the directory before create the files
+                    // TODO
+                    //if (files[i].isRoot()) {
+                    //    continue;
+                    //}
 		    ArrayList<Path> parents = new ArrayList<Path>();
 		    Path parent = files[i].parent();
                     //System.out.println(parent);
-		    while (this.get(parent) == null && !parent.isRoot()) {
+		    //while (this.get(parent) == null && !parent.isRoot()) {
+		    while (this.get(parent) == null && !parent.isRoot() && !files[i].isRoot()) {
             //        System.out.println(parent);
 		        parents.add(parent);	
 //                    System.out.println("HAHA");
@@ -908,4 +1098,130 @@ public class NamingServer implements Service, Registration
 	    return r;
 	}
     }
+    class Scheduler implements Runnable {
+    /*
+        private boolean stopped;
+        private Queue<LockRequest> lock_queue;
+        private boolean locking;
+
+        Schduler(boolean stopped_, Queue<LockRequest> lock_queue_, boolean locking_) {
+            this.stopped = stopped_;
+            this.lock_queue = lock_queue_;
+            this.locking = locking_;
+        }
+    */
+        public void run () {
+            LockRequest lock_request = null;
+            while(!NamingServer.this.stopped) {
+                //if (NamingServer.this.lock_queue.size() != 0) 
+                //    System.out.println(NamingServer.this.lock_queue.size());
+                //System.out.println(NamingServer.this.lock_queue.peek() == null);
+                //NamingServer.this.writeLock.lock();
+                //NamingServer.this.writeLock.unlock();
+                //if (NamingServer.this.lock_queue.peek() == null || NamingServer.this.queueing) {
+                //if (NamingServer.this.queueing) {
+                //    continue;
+                //}
+                //Path pqueue = NamingServer.this.lock_queue.peek().getPath();
+                //int tid = lock_queue.peek().threadid;
+                //System.out.println(pqueue);
+                //if (pqueue == null) {
+                    //LockRequest lock_request = NamingServer.this.lock_queue.poll();
+                try {
+                    lock_request = NamingServer.this.lock_queue.take();
+                } catch (InterruptedException e) {}
+                Path pqueue = lock_request.path;
+                if (pqueue == null) {
+                    NamingServer.this.locking(lock_request.path, lock_request.exclusive, lock_request.threadid);
+                    continue;
+                }
+                DefaultMutableTreeNode pm = NamingServer.this.get(pqueue);
+                if (pm == null) {
+                    NamingServer.this.locking(lock_request.path, lock_request.exclusive, lock_request.threadid);
+                    continue;
+                } 
+                /*
+                System.out.println(pm.getChildCount());
+                if (pm.getChildCount() != 0) {
+                    DefaultMutableTreeNode c = (DefaultMutableTreeNode) pm.getChildAt(0);
+                    PathMachinePair cpmp = (PathMachinePair)c.getUserObject();
+                    System.out.println(cpmp.path);
+                }*/
+                PathMachinePair pmp = (PathMachinePair) pm.getUserObject();
+                //System.out.println("始まるぞ");
+                //System.out.println(pqueue);
+                //System.out.println(pmp.file_lock.isSharedLocked());
+                //System.out.println(pmp == null);
+                //System.out.println(NamingServer.this.lock_queue.peek());
+                while ( NamingServer.this.locking ||
+                           !(((pmp.file_lock.isSharedLocked() ||
+                           pmp.file_lock.isUnLocked()) && 
+                           (!lock_request.exclusive)) ||
+                           (pmp.file_lock.isUnLocked() &&
+                            lock_request.exclusive)) ) { }
+                //LockRequest lock_request = NamingServer.this.lock_queue.poll();
+                //try {
+                //    lock_request = NamingServer.this.lock_queue.take();
+                //} catch (InterruptedException e) {}
+                //System.out.println(pmp.file_lock.isSharedLocked());
+                NamingServer.this.locking(lock_request.path, lock_request.exclusive, lock_request.threadid);
+            }
+        }
+    }
+    class AddRequest implements Runnable {
+    /*
+        private Path path;
+        private boolean exclusive;
+        private int tid;
+        private Queue<LockRequest> lock_queue;
+        private Map<Integer, Exception> exception_table;
+        private Map<Integer, Boolean> finishing_table;
+
+        AddRequest(Path path_, boolean exclusive_, int tid_, Queue<LockRequest> lock_queue_, Map<Integer, Exception> exception_table_, Map<Integer, Boolean> finishing_table_) {
+            this.path = path_;
+            this.exclusive = exclusive_;
+            this.tid = tid_;
+            this.lock_queue = lock_queue_;
+            this.exception_table = exception_table_;
+            this.finishing_table = finishing_table_;
+        }
+    */
+        private Path path;
+        private boolean exclusive;
+        private int tid;
+
+        AddRequest(Path path_, boolean exclusive_, int tid_) {
+            this.path = path_;
+            this.exclusive = exclusive_;
+            this.tid = tid_;
+        }
+
+        public synchronized void run () {
+            //NamingServer.this.queueing = true;
+            //NamingServer.this.lock_queue.add(new LockRequest(this.path, this.exclusive, this.tid));
+            try {
+                NamingServer.this.lock_queue.put(new LockRequest(this.path, this.exclusive, this.tid));
+            } catch (InterruptedException e) {}
+            //System.out.println(this.path);
+            NamingServer.this.finishing_table.put(this.tid, false);
+            //NamingServer.this.queueing = false;
+            //System.out.println(NamingServer.this.lock_queue.size());
+            //System.out.println("BBBB"); 
+            //System.out.println(NamingServer.this.finishing_table.get(this.tid)); 
+            //TODO
+            while (true) {
+                if (NamingServer.this.finishing_table.get(this.tid) == null) {
+                    return;
+                } else if (NamingServer.this.finishing_table.get(this.tid)) {
+                    //synchronized(NamingServer.this) {
+                        //notifyAll();
+                       // System.out.println("HAHAHA");
+                    //}
+                    return;
+                }
+            }
+        }
+    }
 }
+
+
