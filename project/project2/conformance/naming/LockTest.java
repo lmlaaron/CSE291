@@ -276,7 +276,6 @@ public class LockTest extends NamingTest
                                  "when given null for path argument", t);
         }
 
-
         // Check that lock and unlock reject bad paths.
         Path    non_existent_path = new Path("/another_file");
 
