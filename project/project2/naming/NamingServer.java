@@ -894,8 +894,6 @@ public class NamingServer implements Service, Registration
 	    throw new FileNotFoundException("file not found!");
 	}
 	PathMachinePair pmp = (PathMachinePair) pm.getUserObject();
-        System.out.print(path);
-        System.out.println(pmp.file_type == FileType.FILE);
 	if (pmp.file_type == FileType.FILE ) {
 	    try {
 	         // only to remove from the first server, because when acquiring exlusive locks, the replica has already been removed
@@ -915,7 +913,7 @@ public class NamingServer implements Service, Registration
 	    }
 	    return true;
 	} else if ( pmp.file_type == FileType.DIRECTORY ) {
-	    for (int i = 0; i < pm.getChildCount(); i++ ) {
+	    /*for (int i = 0; i < pm.getChildCount(); i++ ) {
 	        boolean isNormal = true;
 	        try {
 		  DefaultMutableTreeNode pm_child = (DefaultMutableTreeNode) pm.getChildAt(i);
@@ -940,7 +938,25 @@ public class NamingServer implements Service, Registration
 	
 		
 	        }
-	    }
+	    }*/
+	    ArrayList<DefaultMutableTreeNode> nodes_to_visit = new ArrayList<DefaultMutableTreeNode>();
+	    nodes_to_visit.add(pm);
+	    int cursor = 0;	
+	    while (cursor < nodes_to_visit.size()) {
+	        DefaultMutableTreeNode currentnode = nodes_to_visit.get(cursor);
+	        PathMachinePair current_pm = (PathMachinePair) currentnode.getUserObject();
+                if (current_pm.file_type == FileType.FILE) {
+		   for ( StorageMachine m: current_pm.machine ) {
+                        m.command_stub.delete(path);
+                   }
+               	}
+		for ( int i = 0; i < currentnode.getChildCount(); i++ ) {
+		    DefaultMutableTreeNode child = (DefaultMutableTreeNode) currentnode.getChildAt(i);
+		    PathMachinePair pmp_child = (PathMachinePair) child.getUserObject();
+		    nodes_to_visit.add(child);
+		}
+		cursor++;
+            }
 	    pm.removeFromParent();
 	    return true; 
 	}
