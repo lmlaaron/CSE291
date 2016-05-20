@@ -919,9 +919,17 @@ public class NamingServer implements Service, Registration
 	        boolean isNormal = true;
 	        try {
 		  DefaultMutableTreeNode pm_child = (DefaultMutableTreeNode) pm.getChildAt(i);
-		  PathMachinePair pmp_child = (PathMachinePair) pm_child.getUserObject();                  for ( StorageMachine m: pmp_child.machine ) {
-                      m.command_stub.delete(path);
+		  PathMachinePair pmp_child = (PathMachinePair) pm_child.getUserObject();                  if (pmp_child.file_type == FileType.DIRECTORY) {
+                      this.delete(pmp_child.path);
+                  } else {
+		      for ( StorageMachine m: pmp_child.machine ) {
+                          m.command_stub.delete(path);
+                      }
                   }
+		//for ( StorageMachine m: pmp_child.machine ) {
+                      //m.command_stub.delete(path);
+                      //this.delete(pmp_child.path);
+		  //}
 	 	  //isNormal = this.delete(pmp_child.path);
 	        } catch (Throwable t) {
 	        	  return false;
