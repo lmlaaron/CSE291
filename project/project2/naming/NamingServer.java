@@ -580,8 +580,6 @@ public class NamingServer implements Service, Registration
     public void unlock(Path path, boolean exclusive)
         throws IllegalArgumentException, RMIException, NullPointerException
     {
-       	// the semantics requires all the files alone the path to be locked
-	// TODO(lmlaaron): locker queue?
 	if ( path == null ) {
 	    throw new NullPointerException("path is null");
 	}
@@ -593,8 +591,6 @@ public class NamingServer implements Service, Registration
 	try {
 	    PathMachinePair pmp = (PathMachinePair) pm.getUserObject();
 	    if (!pmp.file_lock.unlock(exclusive)) {
-                //System.out.print("HAHAHAHA");
-	        //return;
 		throw new Error("error");
 	    }
 	    ArrayList<DefaultMutableTreeNode> parents = new ArrayList<DefaultMutableTreeNode>();
@@ -828,7 +824,6 @@ public class NamingServer implements Service, Registration
 	        // only to remove from the first server, 
                 // because when acquiring exlusive locks,
                 //  the replica has already been removed
-		// System.out.println(pmp.machine.size());
                 for ( StorageMachine m: storage_machines ) {
 			m.command_stub.delete(path);
 		 }
