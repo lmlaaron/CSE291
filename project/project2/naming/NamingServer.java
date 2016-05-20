@@ -422,7 +422,12 @@ public class NamingServer implements Service, Registration
         thread.start();
         //System.out.println(this.finishing_table.get(tid) == null );
         //synchronized(this) {
-        while (this.finishing_table.get(tid) == null || (!this.finishing_table.get(tid))) {
+        //while (this.finishing_table.get(tid) == null || (!this.finishing_table.get(tid))) {
+        while (this.finishing_table.get(tid) == null ) {
+
+ 
+
+
             //System.out.println(this.finishing_table.get(tid)); 
         //System.out.println(this.lock_queue.size());
                 //try {
@@ -430,8 +435,9 @@ public class NamingServer implements Service, Registration
                 //} catch (InterruptedException e) {
                 //}
             //}
-        }
-        //System.out.println(this.finishing_table.get(tid) == null );
+        	//System.out.print(this.finishing_table.get(tid));
+	}
+        //System.out.println("exit loop");
         //readLock.lock();
         try {
             if (exception_table.get(tid) != null) {
@@ -459,7 +465,10 @@ public class NamingServer implements Service, Registration
         } catch (Exception e) {
             this.exception_table.put(tid, e);
         }
-        this.finishing_table.put(tid, true);
+        //System.out.println("locking starting finished");
+	this.finishing_table.put(tid, true);
+        //System.out.println(tid);
+        //System.out.println("locking finished");
         this.locking = false;
     }
 
@@ -1203,7 +1212,7 @@ public class NamingServer implements Service, Registration
                 NamingServer.this.lock_queue.put(new LockRequest(this.path, this.exclusive, this.tid));
             } catch (InterruptedException e) {}
             //System.out.println(this.path);
-            NamingServer.this.finishing_table.put(this.tid, false);
+            //NamingServer.this.finishing_table.put(this.tid, false);
             //NamingServer.this.queueing = false;
             //System.out.println(NamingServer.this.lock_queue.size());
             //System.out.println("BBBB"); 
