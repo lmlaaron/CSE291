@@ -572,6 +572,16 @@ public class NamingServer implements Service, Registration
 	    // for exclusive access, lock the downstream objects for exclusive access    
 	    // this BFS algorithm may have performance issues, consider modifying to multithread (need to watch out for thread safety)
 	    if (exclusive) {
+		boolean first = true;
+            for (StorageMachine m : pmp.machine) {
+		if (first) {
+			first = false;
+			continue;
+		}
+		m.command_stub.delete(pmp.path);
+		pmp.machine.remove(m);
+	}
+                 
 	        ArrayList<DefaultMutableTreeNode> nodes_to_visit = new ArrayList<DefaultMutableTreeNode>();
 		nodes_to_visit.add(pm);
 		int cursor = 0;	
@@ -915,10 +925,15 @@ public class NamingServer implements Service, Registration
 	PathMachinePair pmp = (PathMachinePair) pm.getUserObject();
 	if (pmp.file_type == FileType.FILE ) {
 	    try {
-	    	this.get(path).removeFromParent();
 	         // only to remove from the first server, because when acquiring exlusive locks, the replica has already been removed
-	         pmp.machine.get(0).command_stub.delete(path);
+		System.out.println(pmp.machine.size());
+		 for (StorageMachine m : pmp.machine) {
+			System.out.println("sup");
+			m.command_stub.delete(path);
+		 }
+		 pmp.machine = new ArrayList<StorageMachine>();
 		 //pmp.command_stub.delete(Path path);	    
+	    	pm.removeFromParent();
 	    } catch (Throwable t) {
 	         return false;
 	    }
