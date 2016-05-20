@@ -104,8 +104,15 @@ class StorageMachine {
       this.command_stub = command_stub_;
       this.client_stub = client_stub_;
     }
-    boolean equals(StorageMachine another) {
-    	return (this.command_stub == another.command_stub) && (this.client_stub == another.client_stub);
+
+    @Override
+    public boolean equals(Object o) {
+	if (o instanceof StorageMachine)
+	{
+            StorageMachine another = (StorageMachine) o;
+            return (this.command_stub == another.command_stub) && (this.client_stub == another.client_stub);
+	}
+        return false;
     }
 }
 
@@ -126,7 +133,7 @@ class PathMachinePair {
 class FileLock {
     // -1 means exclusive locked, +n neans shared by n locks, 0 means unlocked
     private AtomicInteger shared_lockers;
-    private AtomicInteger access_counter;
+    public AtomicInteger access_counter;
     private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
     private final Lock readLock = readWriteLock.readLock();
     private final Lock writeLock = readWriteLock.writeLock();
@@ -522,10 +529,19 @@ public class NamingServer implements Service, Registration
 	    //replication policy here
 	    //Random randomGenerator = new Random();
 	    //int random_int = randomGenerator.nextInt()%(storage_machines.size());
-	    //while (pmp.machine.contains(storage_machines.get(random_int)) ) {
-	    //	random_int = randomGenerator.nextInt();
-	    //}
-	    //pmp.file_lock.replicate(path,  pmp.machine.get(0).client_stub, this.storage_machines.get(random_int).command_stub);
+            if (pmp.file_lock.access_counter.intValue() ==20 && !exclusive) {
+		    int random_int = 0;
+		    while (pmp.machine.contains(storage_machines.get(random_int)) ) {
+			random_int++;
+			if (random_int == storage_machines.size()) {
+				//throw new Error("");
+				break;
+			}
+		    }
+		    System.out.println(random_int);
+		    pmp.file_lock.replicate(path,  pmp.machine.get(0).client_stub, this.storage_machines.get(random_int).command_stub);
+                    pmp.machine.add(storage_machines.get(random_int));
+	    }
 	    ArrayList<DefaultMutableTreeNode> parents = new ArrayList<DefaultMutableTreeNode>();
 	    DefaultMutableTreeNode parent = (DefaultMutableTreeNode) pm.getParent();
 	    boolean success = true;
@@ -587,6 +603,7 @@ public class NamingServer implements Service, Registration
 		}
 	    }
             //System.out.println(pmp.file_lock.isSharedLocked());
+        //} catch (InterruptedException e) {
 	} catch (Throwable t) {
             //this.locking = false;
 	    throw t;
@@ -1157,7 +1174,6 @@ public class NamingServer implements Service, Registration
                     System.out.println(cpmp.path);
                 }*/
                 PathMachinePair pmp = (PathMachinePair) pm.getUserObject();
-                //System.out.println("始まるぞ");
                 //System.out.println(pqueue);
                 //System.out.println(pmp.file_lock.isSharedLocked());
                 //System.out.println(pmp == null);
