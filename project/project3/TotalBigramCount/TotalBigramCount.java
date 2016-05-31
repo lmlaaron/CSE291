@@ -1,7 +1,6 @@
 // from https://hadoop.apache.org/docs/current/hadoop-mapreduce-client/hadoop-mapreduce-client-core/MapReduceTutorial.html
 import java.io.IOException;
 import java.util.StringTokenizer;
-import java.util.*;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -13,54 +12,36 @@ import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
-public class TopNBigramCount {
+public class TotalBigramCount {
+
   public static class TokenizerMapper
        extends Mapper<Object, Text, Text, IntWritable>{
 
     private final static IntWritable one = new IntWritable(1);
+    private Text word = new Text();
     private String tokens = "[_|$#<>\\^=\\{\\}\\*/\\\\,;,.\\-:()?!\"']";
-    private Map<String, Integer> countMap = new HashMap<>();
 
-    @Override
     public void map(Object key, Text value, Context context
                     ) throws IOException, InterruptedException {
       String cleanLine = value.toString().toLowerCase().replaceAll(tokens, " ");
       StringTokenizer itr = new StringTokenizer(cleanLine);
       String prev = new String();
       if (itr.hasMoreTokens()) {
-        prev = itr.nextToken().trim();
+          prev = itr.nextToken(); 
       }
       while (itr.hasMoreTokens()) {
-        String curr = itr.nextToken().trim();
-        String word = prev + " " + curr;
-        if (countMap.containsKey(word)) {
-          countMap.put(word, countMap.get(word)+1);
-        } else {
-          countMap.put(word, 1);
-        }
+        String curr = itr.nextToken();
+        word.set(prev + " " + curr);
+        context.write(new Text("Total bigrams"), one);
         prev = curr;
-      }
-    }
-    
-    @Override
-    protected void cleanup(Context context) throws IOException, InterruptedException {
-      for (String key: countMap.keySet()) {
-        context.write(new Text(key), new IntWritable(countMap.get(key)));
       }
     }
   }
 
   public static class IntSumReducer
        extends Reducer<Text,IntWritable,Text,IntWritable> {
-    private Map<Text, IntWritable> countMap = new HashMap<>();
-    
-    public static Map sortByValues(Map unsortedMap) {
-		Map sortedMap = new TreeMap(new ValueComparator(unsortedMap));
-		sortedMap.putAll(unsortedMap);
-		return sortedMap;
-    }
+    private IntWritable result = new IntWritable();
 
-    @Override
     public void reduce(Text key, Iterable<IntWritable> values,
                        Context context
                        ) throws IOException, InterruptedException {
@@ -68,46 +49,15 @@ public class TopNBigramCount {
       for (IntWritable val : values) {
         sum += val.get();
       }
-      countMap.put(new Text(key), new IntWritable(sum));
-    }
-
-    protected void cleanup(Context context) throws IOException, InterruptedException {
-      Map<Text, IntWritable> sortedMap = sortByValues(countMap);
-      int counter = 0;
-      for (Text key: sortedMap.keySet()) {
-        counter++;
-        context.write(key, sortedMap.get(key));
-        if (counter == 10) {
-          break;
-        }
-      }
-    }
-  }
-
-  public static class ValueComparator implements Comparator {
-    Map map;
- 
-    public ValueComparator(Map map) {
-      this.map = map;
-    }
-
-    public int compare(Object keyA, Object keyB) {
-      Comparable valueA = (Comparable) map.get(keyA);
-      Comparable valueB = (Comparable) map.get(keyB);
-      int res = valueB.compareTo(valueA);
-      if (res == 0) {
-        Comparable A = (Comparable) keyA;
-        Comparable B = (Comparable) keyB;
-        res = A.compareTo(B);
-      }
-      return res;
+      result.set(sum);
+      context.write(key, result);
     }
   }
 
   public static void main(String[] args) throws Exception {
     Configuration conf = new Configuration();
-    Job job = Job.getInstance(conf, "top n bigram count");
-    job.setJarByClass(TopNBigramCount.class);
+    Job job = Job.getInstance(conf, "total bigrams count");
+    job.setJarByClass(TotalBigramCount.class);
     job.setMapperClass(TokenizerMapper.class);
     job.setCombinerClass(IntSumReducer.class);
     job.setReducerClass(IntSumReducer.class);
