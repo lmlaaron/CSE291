@@ -12,20 +12,28 @@ import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
-public class WordCount {
+public class BigramCount {
 
   public static class TokenizerMapper
        extends Mapper<Object, Text, Text, IntWritable>{
 
     private final static IntWritable one = new IntWritable(1);
     private Text word = new Text();
+    private String tokens = "[_|$#<>\\^=\\{\\}\\*/\\\\,;,.\\-:()?!\"']";
 
     public void map(Object key, Text value, Context context
                     ) throws IOException, InterruptedException {
-      StringTokenizer itr = new StringTokenizer(value.toString());
+      String cleanLine = value.toString().toLowerCase().replaceAll(tokens, " ");
+      StringTokenizer itr = new StringTokenizer(cleanLine);
+      String prev = new String();
+      if (itr.hasMoreTokens()) {
+          prev = itr.nextToken(); 
+      }
       while (itr.hasMoreTokens()) {
-        word.set(itr.nextToken());
+        String curr = itr.nextToken();
+        word.set(prev + " " + curr);
         context.write(word, one);
+        prev = curr;
       }
     }
   }
@@ -49,7 +57,7 @@ public class WordCount {
   public static void main(String[] args) throws Exception {
     Configuration conf = new Configuration();
     Job job = Job.getInstance(conf, "word count");
-    job.setJarByClass(WordCount.class);
+    job.setJarByClass(BigramCount.class);
     job.setMapperClass(TokenizerMapper.class);
     job.setCombinerClass(IntSumReducer.class);
     job.setReducerClass(IntSumReducer.class);
